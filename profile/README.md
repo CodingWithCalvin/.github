@@ -1,8 +1,6 @@
 ## Hi there, hello. 👋
 
-This organization exists to contain the open source projects of [Calvin Allen](https://github.com/CalvinAllen).
-
-It consists, primarily, of projects related to or around extensibility, and you can currently find my Visual Studio extensions, Visual Studio for Mac extensions, and GitHub Actions here. At some point, I'll dive further into Visual Studio Code and JetBrains extensions, which will eventually get posted here.
+This organization exists to contain the open source projects of [Calvin Allen](https://github.com/CalvinAllen) and currently consists of projects related to or around extensibility. You can find my Visual Studio extensions, Visual Studio for Mac extensions, and GitHub Actions here. At some point, I'll dive further into Visual Studio Code and JetBrains extensions, which will eventually get posted here as well.
 
 For Visual Studio, you can find my extensions here - 
 
