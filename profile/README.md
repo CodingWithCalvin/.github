@@ -1,4 +1,4 @@
-## Hi there 👋
+## Hi there, hello. 👋
 
 This organization exists to contain the open source projects of [Calvin Allen](https://github.com/CalvinAllen).
 
