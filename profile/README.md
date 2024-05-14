@@ -1,12 +1,32 @@
 ## Hi there 👋
 
-<!--
+This organization exists to contain the open source projects of [Calvin Allen](https://github.com/CalvinAllen).
 
-**Here are some ideas to get you started:**
+It consists, primarily, of projects related to or around extensibility.
 
-🙋‍♀️ A short introduction - what is your organization all about?
-🌈 Contribution guidelines - how can the community get involved?
-👩‍💻 Useful resources - where can the community find your docs? Is there anything else the community should know?
-🍿 Fun facts - what does your team eat for breakfast?
-🧙 Remember, you can do mighty things with the power of [Markdown](https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
--->
+You can currently find my Visual Studio extensions, Visual Studio for Mac extensions, and GitHub Actions. At some point, I'll dive further into Visual Studio Code and JetBrains extensions, which will eventually get posted here.
+
+For Visual Studio, you can find my extensions here - 
+
+1. https://github.com/stars/CalvinAllen/lists/my-visual-studio-extensions
+   
+> Eventually, all extensions will be on the OpenVSIX Gallery, but for now, only the extensions that the Visual Studio Marketplace won't accept :)
+
+For GitHub Actions, you can find my actions here - 
+
+1. https://github.com/stars/CalvinAllen/lists/my-github-actions
+
+For Visual Studio for Mac, you can find my extensions here -
+
+1. https://github.com/stars/CalvinAllen/lists/my-vs4mac-extensions
+
+> Those extensions are not currently published anywhere outside of the release section in each corresponding repository.
+
+Finally, I have a set of curated lists to help you find more resources on extensibility, primarily in the IDE space - 
+
+1. https://github.com/stars/CalvinAllen/lists/vs-extension-resources
+2. https://github.com/stars/CalvinAllen/lists/vs-extensions-samples
+3. https://github.com/stars/CalvinAllen/lists/vs4mac-extensions-samples
+4. https://github.com/stars/CalvinAllen/lists/vscode-extensions-samples
+
+> Note, my own extensions are not included in these curated lists
