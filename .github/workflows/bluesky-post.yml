@@ -1,0 +1,147 @@
+name: Post to BlueSky
+
+on:
+  workflow_call:
+    inputs:
+      post_text:
+        description: 'The text content of the post. Supports markdown links [text](url) and hashtags.'
+        required: true
+        type: string
+    secrets:
+      BLUESKY_USERNAME:
+        required: true
+      BLUESKY_APP_PASSWORD:
+        required: true
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to BlueSky
+        run: |
+          # Authenticate with BlueSky
+          echo "Authenticating with BlueSky..."
+          AUTH_RESPONSE=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\": \"${{ secrets.BLUESKY_USERNAME }}\", \"password\": \"${{ secrets.BLUESKY_APP_PASSWORD }}\"}")
+
+          ACCESS_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.accessJwt')
+          DID=$(echo "$AUTH_RESPONSE" | jq -r '.did')
+
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+            echo "Error: Failed to authenticate with BlueSky"
+            echo "Response: $AUTH_RESPONSE"
+            exit 1
+          fi
+
+          echo "✓ Authenticated as $DID"
+
+          # Get current timestamp in ISO 8601 format
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Parse markdown links and calculate facets using Python
+          echo "Parsing markdown and calculating facets..."
+          export INPUT_TEXT="${{ inputs.post_text }}"
+
+          RESULT=$(python3 << 'PYEOF'
+          import json, re, os
+
+          input_text = os.environ['INPUT_TEXT']
+
+          # Parse markdown links [text](url) and build facets
+          facets = []
+          output_text = ''
+          last_end = 0
+
+          # Find all markdown links
+          md_links = list(re.finditer(r'\[([^\]]+)\]\(([^)]+)\)', input_text))
+
+          for m in md_links:
+              # Add text before this link
+              output_text += input_text[last_end:m.start()]
+              link_text = m.group(1)
+              link_url = m.group(2)
+
+              # Calculate byte position in output text
+              byte_start = len(output_text.encode('utf-8'))
+              output_text += link_text
+              byte_end = len(output_text.encode('utf-8'))
+
+              facets.append({
+                  'index': {'byteStart': byte_start, 'byteEnd': byte_end},
+                  'features': [{'$type': 'app.bsky.richtext.facet#link', 'uri': link_url}]
+              })
+
+              last_end = m.end()
+
+          # Add remaining text
+          output_text += input_text[last_end:]
+
+          # Add hashtag facets
+          for m in re.finditer(r'#(\w+)', output_text):
+              facets.append({
+                  'index': {'byteStart': len(output_text[:m.start()].encode('utf-8')), 'byteEnd': len(output_text[:m.end()].encode('utf-8'))},
+                  'features': [{'$type': 'app.bsky.richtext.facet#tag', 'tag': m.group(1)}]
+              })
+
+          # Add bare URL facets
+          for m in re.finditer(r'https?://[^\s]+', output_text):
+              byte_start = len(output_text[:m.start()].encode('utf-8'))
+              byte_end = len(output_text[:m.end()].encode('utf-8'))
+              # Skip if this position overlaps with an existing link facet
+              already_linked = any(
+                  f['index']['byteStart'] <= byte_start and f['index']['byteEnd'] >= byte_end
+                  for f in facets if any(feat.get('uri') for feat in f['features'])
+              )
+              if not already_linked:
+                  facets.append({
+                      'index': {'byteStart': byte_start, 'byteEnd': byte_end},
+                      'features': [{'$type': 'app.bsky.richtext.facet#link', 'uri': m.group()}]
+                  })
+
+          # Output as JSON object with both text and facets
+          print(json.dumps({'text': output_text, 'facets': facets}))
+          PYEOF
+          )
+
+          POST_TEXT=$(echo "$RESULT" | jq -r '.text')
+          FACETS=$(echo "$RESULT" | jq -c '.facets')
+
+          echo "Post text: $POST_TEXT"
+          echo "Facets: $FACETS"
+
+          # Create the post using jq to properly escape JSON
+          echo "Creating BlueSky post..."
+          POST_RESPONSE=$(jq -n \
+            --arg did "$DID" \
+            --arg text "$POST_TEXT" \
+            --arg timestamp "$TIMESTAMP" \
+            --argjson facets "$FACETS" \
+            '{
+              repo: $did,
+              collection: "app.bsky.feed.post",
+              record: {
+                text: $text,
+                facets: $facets,
+                createdAt: $timestamp,
+                "$type": "app.bsky.feed.post"
+              }
+            }' | curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -d @-)
+
+          POST_URI=$(echo "$POST_RESPONSE" | jq -r '.uri')
+
+          if [ -z "$POST_URI" ] || [ "$POST_URI" == "null" ]; then
+            echo "Error: Failed to create BlueSky post"
+            echo "Response: $POST_RESPONSE"
+            exit 1
+          fi
+
+          # Extract the post ID from the URI
+          POST_ID=$(echo "$POST_URI" | sed 's|.*/||')
+          POST_URL="https://bsky.app/profile/${{ secrets.BLUESKY_USERNAME }}/post/$POST_ID"
+
+          echo "✓ Posted to BlueSky: $POST_URL"
+        shell: bash
