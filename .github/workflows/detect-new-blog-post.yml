@@ -1,0 +1,156 @@
+name: Detect New Blog Post
+
+on:
+  workflow_call:
+    inputs:
+      content_path:
+        description: 'Path to blog content directory (e.g., src/content/blog)'
+        required: false
+        type: string
+        default: 'src/content/blog'
+      post_filename:
+        description: 'Blog post filename pattern (e.g., index.md)'
+        required: false
+        type: string
+        default: 'index.md'
+      site_url:
+        description: 'Base URL for the site (e.g., https://www.example.com)'
+        required: true
+        type: string
+      url_prefix:
+        description: 'URL path prefix for blog posts (e.g., /blog)'
+        required: false
+        type: string
+        default: '/blog'
+      event_name:
+        description: 'The triggering event name (push, schedule, workflow_dispatch)'
+        required: true
+        type: string
+      categories_field:
+        description: 'Frontmatter field name for categories/tags (e.g., categories, tags)'
+        required: false
+        type: string
+        default: 'categories'
+    outputs:
+      has_new_post:
+        description: 'Whether a new post was detected'
+        value: ${{ jobs.detect.outputs.has_new_post }}
+      post_title:
+        description: 'Title of the new post'
+        value: ${{ jobs.detect.outputs.post_title }}
+      post_url:
+        description: 'Full URL to the new post'
+        value: ${{ jobs.detect.outputs.post_url }}
+      post_hashtags:
+        description: 'Categories as hashtags (e.g., #cat1 #cat2)'
+        value: ${{ jobs.detect.outputs.post_hashtags }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_post: ${{ steps.check.outputs.has_new_post }}
+      post_title: ${{ steps.check.outputs.post_title }}
+      post_url: ${{ steps.check.outputs.post_url }}
+      post_hashtags: ${{ steps.check.outputs.post_hashtags }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect new blog post
+        id: check
+        run: |
+          TODAY=$(date -u +"%Y-%m-%d")
+          echo "Today's date: $TODAY"
+
+          CONTENT_PATH="${{ inputs.content_path }}"
+          POST_FILENAME="${{ inputs.post_filename }}"
+          SITE_URL="${{ inputs.site_url }}"
+          URL_PREFIX="${{ inputs.url_prefix }}"
+          EVENT_NAME="${{ inputs.event_name }}"
+          CATEGORIES_FIELD="${{ inputs.categories_field }}"
+
+          if [ "$EVENT_NAME" == "push" ]; then
+            echo "=== Push event: checking for new posts dated today or earlier ==="
+
+            # Get list of added files in this push
+            ADDED_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD)
+
+            echo "Added files:"
+            echo "$ADDED_FILES"
+
+            # Look for new blog post files
+            NEW_POST=$(echo "$ADDED_FILES" | grep -E "^${CONTENT_PATH}/.*/${POST_FILENAME}$" | head -1)
+
+            if [ -z "$NEW_POST" ]; then
+              echo "No new blog post detected"
+              echo "has_new_post=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo "New post found: $NEW_POST"
+
+            # Extract date from frontmatter
+            POST_DATE=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^date:' | sed 's/^date:[[:space:]]*//' | sed 's/["\x27]//g' | cut -dT -f1)
+            echo "Post date: $POST_DATE"
+
+            # Compare dates - skip if future dated
+            if [[ "$POST_DATE" > "$TODAY" ]]; then
+              echo "Post is future-dated ($POST_DATE > $TODAY), skipping"
+              echo "has_new_post=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+          else
+            echo "=== Scheduled/manual event: checking for posts dated today ==="
+
+            # Find all blog posts and check for ones dated today
+            NEW_POST=""
+            for POST_FILE in $(find "$CONTENT_PATH" -name "$POST_FILENAME" 2>/dev/null); do
+              POST_DATE=$(sed -n '/^---$/,/^---$/p' "$POST_FILE" | grep -E '^date:' | sed 's/^date:[[:space:]]*//' | sed 's/["\x27]//g' | cut -dT -f1)
+
+              if [ "$POST_DATE" == "$TODAY" ]; then
+                echo "Found post dated today: $POST_FILE"
+                NEW_POST="$POST_FILE"
+                break
+              fi
+            done
+
+            if [ -z "$NEW_POST" ]; then
+              echo "No posts dated today found"
+              echo "has_new_post=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          # Extract title from frontmatter
+          TITLE=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^title:' | sed "s/^title:[[:space:]]*['\"]*//" | sed "s/['\"].*$//")
+
+          if [ -z "$TITLE" ]; then
+            echo "Could not extract title"
+            echo "has_new_post=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Title: $TITLE"
+
+          # Extract categories from frontmatter and convert to hashtags
+          # Handles format: categories: [cat1, cat2, cat3] or categories: ["cat1", "cat2"]
+          CATEGORIES=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E "^${CATEGORIES_FIELD}:" | sed "s/^${CATEGORIES_FIELD}:[[:space:]]*//" | tr -d '[]"' | tr ',' '\n' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^/#/' | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+          echo "Hashtags: $CATEGORIES"
+
+          # Extract slug from path: {content_path}/{year}/{slug}/{filename} -> {year}/{slug}
+          SLUG=$(echo "$NEW_POST" | sed "s|${CONTENT_PATH}/||" | sed "s|/${POST_FILENAME}$||")
+
+          # Build full URL (remove trailing slash from site_url if present, ensure url_prefix starts with /)
+          SITE_URL="${SITE_URL%/}"
+          POST_URL="${SITE_URL}${URL_PREFIX}/${SLUG}/"
+
+          echo "URL: $POST_URL"
+
+          echo "has_new_post=true" >> $GITHUB_OUTPUT
+          echo "post_title=$TITLE" >> $GITHUB_OUTPUT
+          echo "post_url=$POST_URL" >> $GITHUB_OUTPUT
+          echo "post_hashtags=$CATEGORIES" >> $GITHUB_OUTPUT
