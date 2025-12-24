@@ -36,6 +36,7 @@ gh api "repos/$FullRepo" -X PATCH `
     -F allow_merge_commit=false `
     -F allow_rebase_merge=false `
     -F delete_branch_on_merge=true `
+    -F allow_update_branch=true `
     -F allow_auto_merge=false `
     -F web_commit_signoff_required=false `
     --silent
@@ -48,6 +49,7 @@ Write-Host "   - Merge commits: disabled" -ForegroundColor Green
 Write-Host "   - Rebase merge: disabled" -ForegroundColor Green
 Write-Host "   - Squash merge: enabled" -ForegroundColor Green
 Write-Host "   - Delete branch on merge: enabled" -ForegroundColor Green
+Write-Host "   - Suggest updating PR branches: enabled" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "2. Creating branch ruleset..." -ForegroundColor Yellow
