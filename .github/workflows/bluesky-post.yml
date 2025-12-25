@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Post to BlueSky
+        env:
+          POST_INPUT: ${{ toJSON(inputs.post_text) }}
         run: |
           # Authenticate with BlueSky
           echo "Authenticating with BlueSky..."
@@ -42,16 +44,10 @@ jobs:
           # Parse markdown links and calculate facets using Python
           echo "Parsing markdown and calculating facets..."
 
-          # Write input to temp file to avoid shell escaping issues
-          cat > /tmp/post_input.txt << 'INPUTEOF'
-          ${{ inputs.post_text }}
-          INPUTEOF
-
           RESULT=$(python3 << 'PYEOF'
-          import json, re
+          import json, re, os
 
-          with open('/tmp/post_input.txt', 'r') as f:
-              input_text = f.read().strip()
+          input_text = json.loads(os.environ['POST_INPUT'])
 
           # Parse markdown links [text](url) and build facets
           facets = []
