@@ -44,6 +44,12 @@ on:
       post_hashtags:
         description: 'Categories as hashtags (e.g., #cat1 #cat2)'
         value: ${{ jobs.detect.outputs.post_hashtags }}
+      post_description:
+        description: 'Description of the new post'
+        value: ${{ jobs.detect.outputs.post_description }}
+      post_image_path:
+        description: 'Local path to the cover image file'
+        value: ${{ jobs.detect.outputs.post_image_path }}
 
 jobs:
   detect:
@@ -53,6 +59,8 @@ jobs:
       post_title: ${{ steps.check.outputs.post_title }}
       post_url: ${{ steps.check.outputs.post_url }}
       post_hashtags: ${{ steps.check.outputs.post_hashtags }}
+      post_description: ${{ steps.check.outputs.post_description }}
+      post_image_path: ${{ steps.check.outputs.post_image_path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,8 +149,8 @@ jobs:
           CATEGORIES=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E "^${CATEGORIES_FIELD}:" | sed "s/^${CATEGORIES_FIELD}:[[:space:]]*//" | tr -d '[]"' | tr ',' '\n' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^/#/' | tr '\n' ' ' | sed 's/[[:space:]]*$//')
           echo "Hashtags: $CATEGORIES"
 
-          # Extract slug from path: {content_path}/{year}/{slug}/{filename} -> {year}/{slug}
-          SLUG=$(echo "$NEW_POST" | sed "s|${CONTENT_PATH}/||" | sed "s|/${POST_FILENAME}$||")
+          # Extract slug from path: {content_path}/{year}/{slug}/{filename} -> {slug}
+          SLUG=$(dirname "$NEW_POST" | xargs basename)
 
           # Build full URL (remove trailing slash from site_url if present, ensure url_prefix starts with /)
           SITE_URL="${SITE_URL%/}"
@@ -150,7 +158,28 @@ jobs:
 
           echo "URL: $POST_URL"
 
+          # Extract description from frontmatter (optional)
+          DESCRIPTION=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^description:' | sed "s/^description:[[:space:]]*['\"]*//" | sed "s/['\"][[:space:]]*$//")
+          echo "Description: $DESCRIPTION"
+
+          # Extract image path from frontmatter (optional, e.g., ./cover.png)
+          IMAGE_REL=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^image:' | sed "s/^image:[[:space:]]*['\"]*//" | sed "s/['\"][[:space:]]*$//" | sed 's|^\./||')
+          if [ -n "$IMAGE_REL" ]; then
+            POST_DIR=$(dirname "$NEW_POST")
+            IMAGE_PATH="$POST_DIR/$IMAGE_REL"
+            if [ -f "$IMAGE_PATH" ]; then
+              echo "Image path: $IMAGE_PATH"
+            else
+              echo "Image file not found: $IMAGE_PATH"
+              IMAGE_PATH=""
+            fi
+          else
+            IMAGE_PATH=""
+          fi
+
           echo "has_new_post=true" >> $GITHUB_OUTPUT
           echo "post_title=$TITLE" >> $GITHUB_OUTPUT
           echo "post_url=$POST_URL" >> $GITHUB_OUTPUT
           echo "post_hashtags=$CATEGORIES" >> $GITHUB_OUTPUT
+          echo "post_description=$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "post_image_path=$IMAGE_PATH" >> $GITHUB_OUTPUT

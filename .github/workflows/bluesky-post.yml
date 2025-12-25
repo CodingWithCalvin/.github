@@ -7,6 +7,10 @@ on:
         description: 'The text content of the post. Supports markdown links [text](url) and hashtags.'
         required: true
         type: string
+      embed_url:
+        description: 'Optional URL to create a website card embed from (fetches OG tags)'
+        required: false
+        type: string
     secrets:
       BLUESKY_USERNAME:
         required: true
@@ -20,6 +24,7 @@ jobs:
       - name: Post to BlueSky
         env:
           POST_INPUT: ${{ toJSON(inputs.post_text) }}
+          EMBED_URL: ${{ inputs.embed_url }}
         run: |
           # Authenticate with BlueSky
           echo "Authenticating with BlueSky..."
@@ -111,26 +116,160 @@ jobs:
           echo "Post text: $POST_TEXT"
           echo "Facets: $FACETS"
 
+          # Build embed if URL provided
+          EMBED=""
+          if [ -n "$EMBED_URL" ]; then
+            echo "Fetching OG tags from: $EMBED_URL"
+
+            # Fetch page and extract OG tags using Python
+            EMBED_DATA=$(python3 << 'PYEOF'
+          import urllib.request
+          import re
+          import json
+          import os
+          import sys
+
+          url = os.environ.get('EMBED_URL', '')
+          if not url:
+              print(json.dumps({}))
+              sys.exit(0)
+
+          try:
+              req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+              with urllib.request.urlopen(req, timeout=10) as response:
+                  html = response.read().decode('utf-8', errors='ignore')
+
+              # Extract OG tags
+              og_title = re.search(r'<meta[^>]*property=["\']og:title["\'][^>]*content=["\']([^"\']+)["\']', html, re.I)
+              og_title = og_title.group(1) if og_title else ''
+
+              og_desc = re.search(r'<meta[^>]*property=["\']og:description["\'][^>]*content=["\']([^"\']+)["\']', html, re.I)
+              og_desc = og_desc.group(1) if og_desc else ''
+
+              og_image = re.search(r'<meta[^>]*property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']', html, re.I)
+              og_image = og_image.group(1) if og_image else ''
+
+              print(json.dumps({'title': og_title, 'description': og_desc, 'image': og_image}))
+          except Exception as e:
+              print(json.dumps({'error': str(e)}), file=sys.stderr)
+              print(json.dumps({}))
+          PYEOF
+            )
+
+            OG_TITLE=$(echo "$EMBED_DATA" | jq -r '.title // empty')
+            OG_DESC=$(echo "$EMBED_DATA" | jq -r '.description // empty')
+            OG_IMAGE=$(echo "$EMBED_DATA" | jq -r '.image // empty')
+
+            echo "OG Title: $OG_TITLE"
+            echo "OG Description: $OG_DESC"
+            echo "OG Image: $OG_IMAGE"
+
+            if [ -n "$OG_TITLE" ]; then
+              # Upload image as blob if present
+              THUMB_JSON=""
+              if [ -n "$OG_IMAGE" ]; then
+                echo "Downloading image: $OG_IMAGE"
+                curl -s -L -o /tmp/og_image "$OG_IMAGE"
+
+                if [ -f /tmp/og_image ] && [ -s /tmp/og_image ]; then
+                  # Detect mime type
+                  MIME_TYPE=$(file --mime-type -b /tmp/og_image)
+                  echo "Image MIME type: $MIME_TYPE"
+
+                  # Upload blob
+                  echo "Uploading image blob..."
+                  BLOB_RESPONSE=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.uploadBlob \
+                    -H "Content-Type: $MIME_TYPE" \
+                    -H "Authorization: Bearer $ACCESS_TOKEN" \
+                    --data-binary @/tmp/og_image)
+
+                  BLOB_REF=$(echo "$BLOB_RESPONSE" | jq -c '.blob')
+                  if [ "$BLOB_REF" != "null" ] && [ -n "$BLOB_REF" ]; then
+                    echo "Blob uploaded successfully"
+                    THUMB_JSON="$BLOB_REF"
+                  else
+                    echo "Failed to upload blob: $BLOB_RESPONSE"
+                  fi
+                fi
+              fi
+
+              # Build embed object
+              if [ -n "$THUMB_JSON" ]; then
+                EMBED=$(jq -n \
+                  --arg uri "$EMBED_URL" \
+                  --arg title "$OG_TITLE" \
+                  --arg desc "$OG_DESC" \
+                  --argjson thumb "$THUMB_JSON" \
+                  '{
+                    "$type": "app.bsky.embed.external",
+                    "external": {
+                      "uri": $uri,
+                      "title": $title,
+                      "description": $desc,
+                      "thumb": $thumb
+                    }
+                  }')
+              else
+                EMBED=$(jq -n \
+                  --arg uri "$EMBED_URL" \
+                  --arg title "$OG_TITLE" \
+                  --arg desc "$OG_DESC" \
+                  '{
+                    "$type": "app.bsky.embed.external",
+                    "external": {
+                      "uri": $uri,
+                      "title": $title,
+                      "description": $desc
+                    }
+                  }')
+              fi
+              echo "Embed created"
+            fi
+          fi
+
           # Create the post using jq to properly escape JSON
           echo "Creating BlueSky post..."
-          POST_RESPONSE=$(jq -n \
-            --arg did "$DID" \
-            --arg text "$POST_TEXT" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson facets "$FACETS" \
-            '{
-              repo: $did,
-              collection: "app.bsky.feed.post",
-              record: {
-                text: $text,
-                facets: $facets,
-                createdAt: $timestamp,
-                "$type": "app.bsky.feed.post"
-              }
-            }' | curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -d @-)
+          if [ -n "$EMBED" ]; then
+            POST_RESPONSE=$(jq -n \
+              --arg did "$DID" \
+              --arg text "$POST_TEXT" \
+              --arg timestamp "$TIMESTAMP" \
+              --argjson facets "$FACETS" \
+              --argjson embed "$EMBED" \
+              '{
+                repo: $did,
+                collection: "app.bsky.feed.post",
+                record: {
+                  text: $text,
+                  facets: $facets,
+                  embed: $embed,
+                  createdAt: $timestamp,
+                  "$type": "app.bsky.feed.post"
+                }
+              }' | curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -d @-)
+          else
+            POST_RESPONSE=$(jq -n \
+              --arg did "$DID" \
+              --arg text "$POST_TEXT" \
+              --arg timestamp "$TIMESTAMP" \
+              --argjson facets "$FACETS" \
+              '{
+                repo: $did,
+                collection: "app.bsky.feed.post",
+                record: {
+                  text: $text,
+                  facets: $facets,
+                  createdAt: $timestamp,
+                  "$type": "app.bsky.feed.post"
+                }
+              }' | curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -d @-)
+          fi
 
           POST_URI=$(echo "$POST_RESPONSE" | jq -r '.uri')
 
