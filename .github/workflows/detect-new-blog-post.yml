@@ -126,7 +126,7 @@ jobs:
           fi
 
           # Extract title from frontmatter
-          TITLE=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^title:' | sed "s/^title:[[:space:]]*['\"]*//" | sed "s/['\"].*$//")
+          TITLE=$(sed -n '/^---$/,/^---$/p' "$NEW_POST" | grep -E '^title:' | sed "s/^title:[[:space:]]*['\"]*//" | sed "s/['\"][[:space:]]*$//")
 
           if [ -z "$TITLE" ]; then
             echo "Could not extract title"
