@@ -1,0 +1,182 @@
+name: Post to LinkedIn
+
+on:
+  workflow_call:
+    inputs:
+      post_text:
+        description: 'The text content of the post'
+        required: true
+        type: string
+      article_url:
+        description: 'Optional URL to share as an article'
+        required: false
+        type: string
+      article_title:
+        description: 'Title for the article (used with article_url)'
+        required: false
+        type: string
+      article_description:
+        description: 'Description for the article (used with article_url)'
+        required: false
+        type: string
+    secrets:
+      LINKEDIN_ACCESS_TOKEN:
+        required: true
+      LINKEDIN_REFRESH_TOKEN:
+        required: true
+      LINKEDIN_CLIENT_ID:
+        required: true
+      LINKEDIN_CLIENT_SECRET:
+        required: true
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to LinkedIn
+        env:
+          ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          REFRESH_TOKEN: ${{ secrets.LINKEDIN_REFRESH_TOKEN }}
+          CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          POST_TEXT: ${{ inputs.post_text }}
+          ARTICLE_URL: ${{ inputs.article_url }}
+          ARTICLE_TITLE: ${{ inputs.article_title }}
+          ARTICLE_DESC: ${{ inputs.article_description }}
+        run: |
+          # Try to get user info with current token
+          echo "Verifying LinkedIn access token..."
+          USER_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://api.linkedin.com/v2/userinfo")
+
+          HTTP_CODE=$(echo "$USER_RESPONSE" | tail -1)
+          USER_DATA=$(echo "$USER_RESPONSE" | sed '$d')
+
+          # If token expired, try to refresh
+          if [ "$HTTP_CODE" == "401" ]; then
+            echo "Access token expired, attempting refresh..."
+
+            REFRESH_RESPONSE=$(curl -s -X POST "https://www.linkedin.com/oauth/v2/accessToken" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "grant_type=refresh_token" \
+              -d "refresh_token=$REFRESH_TOKEN" \
+              -d "client_id=$CLIENT_ID" \
+              -d "client_secret=$CLIENT_SECRET")
+
+            NEW_ACCESS_TOKEN=$(echo "$REFRESH_RESPONSE" | jq -r '.access_token // empty')
+
+            if [ -z "$NEW_ACCESS_TOKEN" ]; then
+              echo "Error: Failed to refresh access token"
+              echo "Response: $REFRESH_RESPONSE"
+              echo ""
+              echo "You may need to re-authorize the LinkedIn app."
+              echo "Visit: https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=$CLIENT_ID&redirect_uri=https://localhost&scope=openid%20profile%20w_member_social"
+              exit 1
+            fi
+
+            ACCESS_TOKEN="$NEW_ACCESS_TOKEN"
+            echo "Token refreshed successfully"
+
+            # Note: The new refresh_token should be saved, but GitHub Actions
+            # cannot update secrets directly. Log a warning.
+            NEW_REFRESH_TOKEN=$(echo "$REFRESH_RESPONSE" | jq -r '.refresh_token // empty')
+            if [ -n "$NEW_REFRESH_TOKEN" ] && [ "$NEW_REFRESH_TOKEN" != "$REFRESH_TOKEN" ]; then
+              echo "::warning::A new refresh token was issued. Update LINKEDIN_REFRESH_TOKEN secret manually to avoid re-authorization."
+            fi
+
+            # Retry getting user info
+            USER_DATA=$(curl -s \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://api.linkedin.com/v2/userinfo")
+          fi
+
+          # Extract person URN from userinfo
+          PERSON_ID=$(echo "$USER_DATA" | jq -r '.sub // empty')
+
+          if [ -z "$PERSON_ID" ]; then
+            echo "Error: Could not get LinkedIn user ID"
+            echo "Response: $USER_DATA"
+            exit 1
+          fi
+
+          PERSON_URN="urn:li:person:$PERSON_ID"
+          echo "Authenticated as: $PERSON_URN"
+
+          # Build the post payload
+          echo "Creating LinkedIn post..."
+
+          if [ -n "$ARTICLE_URL" ]; then
+            # Post with article share
+            POST_PAYLOAD=$(jq -n \
+              --arg author "$PERSON_URN" \
+              --arg text "$POST_TEXT" \
+              --arg url "$ARTICLE_URL" \
+              --arg title "$ARTICLE_TITLE" \
+              --arg desc "$ARTICLE_DESC" \
+              '{
+                "author": $author,
+                "commentary": $text,
+                "visibility": "PUBLIC",
+                "distribution": {
+                  "feedDistribution": "MAIN_FEED",
+                  "targetEntities": [],
+                  "thirdPartyDistributionChannels": []
+                },
+                "content": {
+                  "article": {
+                    "source": $url,
+                    "title": $title,
+                    "description": $desc
+                  }
+                },
+                "lifecycleState": "PUBLISHED",
+                "isReshareDisabledByAuthor": false
+              }')
+          else
+            # Text-only post
+            POST_PAYLOAD=$(jq -n \
+              --arg author "$PERSON_URN" \
+              --arg text "$POST_TEXT" \
+              '{
+                "author": $author,
+                "commentary": $text,
+                "visibility": "PUBLIC",
+                "distribution": {
+                  "feedDistribution": "MAIN_FEED",
+                  "targetEntities": [],
+                  "thirdPartyDistributionChannels": []
+                },
+                "lifecycleState": "PUBLISHED",
+                "isReshareDisabledByAuthor": false
+              }')
+          fi
+
+          # Create the post using LinkedIn's Posts API
+          POST_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.linkedin.com/rest/posts" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "LinkedIn-Version: 202401" \
+            -H "X-Restli-Protocol-Version: 2.0.0" \
+            -d "$POST_PAYLOAD")
+
+          HTTP_CODE=$(echo "$POST_RESPONSE" | tail -1)
+          RESPONSE_BODY=$(echo "$POST_RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" == "201" ] || [ "$HTTP_CODE" == "200" ]; then
+            # Extract post ID from x-restli-id header or response
+            POST_ID=$(echo "$RESPONSE_BODY" | jq -r '.id // empty')
+            if [ -n "$POST_ID" ]; then
+              echo "Posted to LinkedIn successfully!"
+              echo "Post ID: $POST_ID"
+            else
+              echo "Posted to LinkedIn successfully!"
+            fi
+          else
+            echo "Error: Failed to create LinkedIn post"
+            echo "HTTP Code: $HTTP_CODE"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+        shell: bash
