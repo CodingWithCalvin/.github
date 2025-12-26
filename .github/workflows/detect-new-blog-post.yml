@@ -31,6 +31,10 @@ on:
         required: false
         type: string
         default: 'categories'
+      target_date:
+        description: 'Date to look for posts (YYYY-MM-DD format). Defaults to current date.'
+        required: false
+        type: string
     outputs:
       has_new_post:
         description: 'Whether a new post was detected'
@@ -70,8 +74,14 @@ jobs:
       - name: Detect new blog post
         id: check
         run: |
-          TODAY=$(date -u +"%Y-%m-%d")
-          echo "Today's date: $TODAY"
+          # Use target_date if provided, otherwise default to current date
+          if [ -n "${{ inputs.target_date }}" ]; then
+            TARGET_DATE="${{ inputs.target_date }}"
+            echo "Using provided target date: $TARGET_DATE"
+          else
+            TARGET_DATE=$(date -u +"%Y-%m-%d")
+            echo "Using current date: $TARGET_DATE"
+          fi
 
           CONTENT_PATH="${{ inputs.content_path }}"
           POST_FILENAME="${{ inputs.post_filename }}"
@@ -81,7 +91,7 @@ jobs:
           CATEGORIES_FIELD="${{ inputs.categories_field }}"
 
           if [ "$EVENT_NAME" == "push" ]; then
-            echo "=== Push event: checking for new posts dated today or earlier ==="
+            echo "=== Push event: checking for new posts dated $TARGET_DATE or earlier ==="
 
             # Get list of added files in this push
             ADDED_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD)
@@ -105,29 +115,29 @@ jobs:
             echo "Post date: $POST_DATE"
 
             # Compare dates - skip if future dated
-            if [[ "$POST_DATE" > "$TODAY" ]]; then
-              echo "Post is future-dated ($POST_DATE > $TODAY), skipping"
+            if [[ "$POST_DATE" > "$TARGET_DATE" ]]; then
+              echo "Post is future-dated ($POST_DATE > $TARGET_DATE), skipping"
               echo "has_new_post=false" >> $GITHUB_OUTPUT
               exit 0
             fi
 
           else
-            echo "=== Scheduled/manual event: checking for posts dated today ==="
+            echo "=== Scheduled/manual event: checking for posts dated $TARGET_DATE ==="
 
-            # Find all blog posts and check for ones dated today
+            # Find all blog posts and check for ones matching target date
             NEW_POST=""
             for POST_FILE in $(find "$CONTENT_PATH" -name "$POST_FILENAME" 2>/dev/null); do
               POST_DATE=$(sed -n '/^---$/,/^---$/p' "$POST_FILE" | grep -E '^date:' | sed 's/^date:[[:space:]]*//' | sed 's/["\x27]//g' | cut -dT -f1)
 
-              if [ "$POST_DATE" == "$TODAY" ]; then
-                echo "Found post dated today: $POST_FILE"
+              if [ "$POST_DATE" == "$TARGET_DATE" ]; then
+                echo "Found post dated $TARGET_DATE: $POST_FILE"
                 NEW_POST="$POST_FILE"
                 break
               fi
             done
 
             if [ -z "$NEW_POST" ]; then
-              echo "No posts dated today found"
+              echo "No posts dated $TARGET_DATE found"
               echo "has_new_post=false" >> $GITHUB_OUTPUT
               exit 0
             fi
