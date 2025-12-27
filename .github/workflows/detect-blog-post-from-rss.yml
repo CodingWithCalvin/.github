@@ -80,8 +80,7 @@ jobs:
           import sys
           import xml.etree.ElementTree as ET
           import json
-          import re
-          from datetime import datetime
+          from email.utils import parsedate_to_datetime
           import os
 
           target_date = os.environ.get('TARGET_DATE', '')
@@ -105,14 +104,11 @@ jobs:
                   continue
 
               pub_date_str = pub_date_elem.text
-              # Parse RFC 822 date format: "Wed, 25 Dec 2024 12:00:00 GMT"
+              # Parse RFC 822 date format using email.utils (handles GMT correctly)
               try:
-                  pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %Z')
-              except ValueError:
-                  try:
-                      pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %z')
-                  except ValueError:
-                      continue
+                  pub_date = parsedate_to_datetime(pub_date_str)
+              except (ValueError, TypeError):
+                  continue
 
               post_date = pub_date.strftime('%Y-%m-%d')
 
