@@ -123,7 +123,7 @@ jobs:
             "https://api.linkedin.com/rest/posts" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "LinkedIn-Version: 202412" \
+            -H "LinkedIn-Version: 202501" \
             -H "X-Restli-Protocol-Version: 2.0.0" \
             -d "$POST_PAYLOAD")
 
