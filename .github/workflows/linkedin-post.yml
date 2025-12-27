@@ -72,33 +72,111 @@ jobs:
           # Build the post payload
           echo "Creating LinkedIn post..."
 
+          THUMBNAIL_URN=""
+
           if [ -n "$ARTICLE_URL" ]; then
+            # Fetch OG image from URL
+            echo "Fetching OG image from: $ARTICLE_URL"
+            OG_IMAGE=$(curl -s "$ARTICLE_URL" | grep -oP '(?<=property="og:image" content=")[^"]+' | head -1)
+
+            if [ -n "$OG_IMAGE" ]; then
+              echo "Found OG image: $OG_IMAGE"
+
+              # Download the image
+              curl -s -L -o /tmp/og_image "$OG_IMAGE"
+
+              if [ -f /tmp/og_image ] && [ -s /tmp/og_image ]; then
+                # Initialize image upload
+                echo "Initializing LinkedIn image upload..."
+                INIT_RESPONSE=$(curl -s -X POST \
+                  "https://api.linkedin.com/rest/images?action=initializeUpload" \
+                  -H "Authorization: Bearer $ACCESS_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -H "LinkedIn-Version: 202501" \
+                  -H "X-Restli-Protocol-Version: 2.0.0" \
+                  -d "{\"initializeUploadRequest\":{\"owner\":\"$PERSON_URN\"}}")
+
+                UPLOAD_URL=$(echo "$INIT_RESPONSE" | jq -r '.value.uploadUrl // empty')
+                IMAGE_URN=$(echo "$INIT_RESPONSE" | jq -r '.value.image // empty')
+
+                if [ -n "$UPLOAD_URL" ] && [ -n "$IMAGE_URN" ]; then
+                  echo "Uploading image to LinkedIn..."
+                  UPLOAD_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$UPLOAD_URL" \
+                    -H "Authorization: Bearer $ACCESS_TOKEN" \
+                    --upload-file /tmp/og_image)
+
+                  UPLOAD_CODE=$(echo "$UPLOAD_RESPONSE" | tail -1)
+                  if [ "$UPLOAD_CODE" == "201" ] || [ "$UPLOAD_CODE" == "200" ]; then
+                    echo "Image uploaded successfully: $IMAGE_URN"
+                    THUMBNAIL_URN="$IMAGE_URN"
+                  else
+                    echo "Warning: Image upload failed with code $UPLOAD_CODE"
+                  fi
+                else
+                  echo "Warning: Could not initialize image upload"
+                  echo "Response: $INIT_RESPONSE"
+                fi
+              fi
+            else
+              echo "No OG image found"
+            fi
+
             # Post with article share
-            POST_PAYLOAD=$(jq -n \
-              --arg author "$PERSON_URN" \
-              --arg text "$POST_TEXT" \
-              --arg url "$ARTICLE_URL" \
-              --arg title "$ARTICLE_TITLE" \
-              --arg desc "$ARTICLE_DESC" \
-              '{
-                "author": $author,
-                "commentary": $text,
-                "visibility": "PUBLIC",
-                "distribution": {
-                  "feedDistribution": "MAIN_FEED",
-                  "targetEntities": [],
-                  "thirdPartyDistributionChannels": []
-                },
-                "content": {
-                  "article": {
-                    "source": $url,
-                    "title": $title,
-                    "description": $desc
-                  }
-                },
-                "lifecycleState": "PUBLISHED",
-                "isReshareDisabledByAuthor": false
-              }')
+            if [ -n "$THUMBNAIL_URN" ]; then
+              POST_PAYLOAD=$(jq -n \
+                --arg author "$PERSON_URN" \
+                --arg text "$POST_TEXT" \
+                --arg url "$ARTICLE_URL" \
+                --arg title "$ARTICLE_TITLE" \
+                --arg desc "$ARTICLE_DESC" \
+                --arg thumb "$THUMBNAIL_URN" \
+                '{
+                  "author": $author,
+                  "commentary": $text,
+                  "visibility": "PUBLIC",
+                  "distribution": {
+                    "feedDistribution": "MAIN_FEED",
+                    "targetEntities": [],
+                    "thirdPartyDistributionChannels": []
+                  },
+                  "content": {
+                    "article": {
+                      "source": $url,
+                      "title": $title,
+                      "description": $desc,
+                      "thumbnail": $thumb
+                    }
+                  },
+                  "lifecycleState": "PUBLISHED",
+                  "isReshareDisabledByAuthor": false
+                }')
+            else
+              POST_PAYLOAD=$(jq -n \
+                --arg author "$PERSON_URN" \
+                --arg text "$POST_TEXT" \
+                --arg url "$ARTICLE_URL" \
+                --arg title "$ARTICLE_TITLE" \
+                --arg desc "$ARTICLE_DESC" \
+                '{
+                  "author": $author,
+                  "commentary": $text,
+                  "visibility": "PUBLIC",
+                  "distribution": {
+                    "feedDistribution": "MAIN_FEED",
+                    "targetEntities": [],
+                    "thirdPartyDistributionChannels": []
+                  },
+                  "content": {
+                    "article": {
+                      "source": $url,
+                      "title": $title,
+                      "description": $desc
+                    }
+                  },
+                  "lifecycleState": "PUBLISHED",
+                  "isReshareDisabledByAuthor": false
+                }')
+            fi
           else
             # Text-only post
             POST_PAYLOAD=$(jq -n \
