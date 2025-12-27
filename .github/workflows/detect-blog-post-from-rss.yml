@@ -1,0 +1,194 @@
+name: Detect Blog Post From RSS
+
+on:
+  workflow_call:
+    inputs:
+      rss_url:
+        description: 'URL of the RSS feed to check'
+        required: true
+        type: string
+      target_date:
+        description: 'Date to look for posts (YYYY-MM-DD format). Defaults to current Eastern date.'
+        required: false
+        type: string
+    outputs:
+      has_posts:
+        description: 'Whether posts were found for the target date'
+        value: ${{ jobs.detect.outputs.has_posts }}
+      posts_json:
+        description: 'JSON array of post objects with all metadata'
+        value: ${{ jobs.detect.outputs.posts_json }}
+      post_count:
+        description: 'Number of posts found'
+        value: ${{ jobs.detect.outputs.post_count }}
+      post_title:
+        description: 'Title of the first post (for single-post workflows)'
+        value: ${{ jobs.detect.outputs.post_title }}
+      post_url:
+        description: 'URL of the first post'
+        value: ${{ jobs.detect.outputs.post_url }}
+      post_description:
+        description: 'Description of the first post'
+        value: ${{ jobs.detect.outputs.post_description }}
+      post_hashtags:
+        description: 'Hashtags from the first post categories'
+        value: ${{ jobs.detect.outputs.post_hashtags }}
+      post_image_url:
+        description: 'Image URL from the first post enclosure'
+        value: ${{ jobs.detect.outputs.post_image_url }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has_posts: ${{ steps.parse.outputs.has_posts }}
+      posts_json: ${{ steps.parse.outputs.posts_json }}
+      post_count: ${{ steps.parse.outputs.post_count }}
+      post_title: ${{ steps.parse.outputs.post_title }}
+      post_url: ${{ steps.parse.outputs.post_url }}
+      post_description: ${{ steps.parse.outputs.post_description }}
+      post_hashtags: ${{ steps.parse.outputs.post_hashtags }}
+      post_image_url: ${{ steps.parse.outputs.post_image_url }}
+    steps:
+      - name: Detect posts from RSS feed
+        id: parse
+        run: |
+          RSS_URL="${{ inputs.rss_url }}"
+
+          # Determine target date (Eastern time)
+          if [ -n "${{ inputs.target_date }}" ]; then
+            TARGET_DATE="${{ inputs.target_date }}"
+            echo "Using provided target date: $TARGET_DATE"
+          else
+            TARGET_DATE=$(TZ="America/New_York" date +"%Y-%m-%d")
+            echo "Using current Eastern date: $TARGET_DATE"
+          fi
+
+          echo "Fetching RSS from: $RSS_URL"
+          RSS_CONTENT=$(curl -s "$RSS_URL")
+
+          if [ -z "$RSS_CONTENT" ]; then
+            echo "Failed to fetch RSS feed"
+            echo "has_posts=false" >> $GITHUB_OUTPUT
+            echo "post_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Parse RSS and find posts matching target date
+          # Extract items and filter by pubDate
+          POSTS_JSON=$(echo "$RSS_CONTENT" | python3 << 'PYTHON_SCRIPT'
+          import sys
+          import xml.etree.ElementTree as ET
+          import json
+          import re
+          from datetime import datetime
+          import os
+
+          target_date = os.environ.get('TARGET_DATE', '')
+          rss_content = sys.stdin.read()
+
+          try:
+              root = ET.fromstring(rss_content)
+          except ET.ParseError as e:
+              print(json.dumps([]))
+              sys.exit(0)
+
+          posts = []
+          channel = root.find('channel')
+          if channel is None:
+              print(json.dumps([]))
+              sys.exit(0)
+
+          for item in channel.findall('item'):
+              pub_date_elem = item.find('pubDate')
+              if pub_date_elem is None:
+                  continue
+
+              pub_date_str = pub_date_elem.text
+              # Parse RFC 822 date format: "Wed, 25 Dec 2024 12:00:00 GMT"
+              try:
+                  pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %Z')
+              except ValueError:
+                  try:
+                      pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %z')
+                  except ValueError:
+                      continue
+
+              post_date = pub_date.strftime('%Y-%m-%d')
+
+              if post_date != target_date:
+                  continue
+
+              title = item.find('title')
+              link = item.find('link')
+              description = item.find('description')
+              enclosure = item.find('enclosure')
+
+              # Get categories
+              categories = []
+              for cat in item.findall('category'):
+                  if cat.text:
+                      categories.append(cat.text)
+
+              # Convert categories to hashtags
+              hashtags = ' '.join(['#' + cat.replace(' ', '') for cat in categories])
+
+              post = {
+                  'title': title.text if title is not None else '',
+                  'url': link.text if link is not None else '',
+                  'description': description.text if description is not None else '',
+                  'categories': categories,
+                  'hashtags': hashtags,
+                  'image_url': enclosure.get('url') if enclosure is not None else '',
+                  'pub_date': post_date
+              }
+              posts.append(post)
+
+          print(json.dumps(posts))
+          PYTHON_SCRIPT
+          )
+
+          export TARGET_DATE="$TARGET_DATE"
+
+          POST_COUNT=$(echo "$POSTS_JSON" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))")
+
+          if [ "$POST_COUNT" -eq 0 ]; then
+            echo "No posts found for $TARGET_DATE"
+            echo "has_posts=false" >> $GITHUB_OUTPUT
+            echo "post_count=0" >> $GITHUB_OUTPUT
+            echo "posts_json=[]" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found $POST_COUNT post(s) for $TARGET_DATE"
+          echo "has_posts=true" >> $GITHUB_OUTPUT
+          echo "post_count=$POST_COUNT" >> $GITHUB_OUTPUT
+
+          # For multiline JSON, use heredoc
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "posts_json<<$EOF" >> $GITHUB_OUTPUT
+          echo "$POSTS_JSON" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+          # Extract first post details for single-post workflows
+          FIRST_POST=$(echo "$POSTS_JSON" | python3 -c "import sys, json; posts = json.load(sys.stdin); print(json.dumps(posts[0]) if posts else '{}')")
+
+          POST_TITLE=$(echo "$FIRST_POST" | python3 -c "import sys, json; print(json.load(sys.stdin).get('title', ''))")
+          POST_URL=$(echo "$FIRST_POST" | python3 -c "import sys, json; print(json.load(sys.stdin).get('url', ''))")
+          POST_DESCRIPTION=$(echo "$FIRST_POST" | python3 -c "import sys, json; print(json.load(sys.stdin).get('description', ''))")
+          POST_HASHTAGS=$(echo "$FIRST_POST" | python3 -c "import sys, json; print(json.load(sys.stdin).get('hashtags', ''))")
+          POST_IMAGE_URL=$(echo "$FIRST_POST" | python3 -c "import sys, json; print(json.load(sys.stdin).get('image_url', ''))")
+
+          echo "Title: $POST_TITLE"
+          echo "URL: $POST_URL"
+          echo "Description: $POST_DESCRIPTION"
+          echo "Hashtags: $POST_HASHTAGS"
+          echo "Image URL: $POST_IMAGE_URL"
+
+          echo "post_title=$POST_TITLE" >> $GITHUB_OUTPUT
+          echo "post_url=$POST_URL" >> $GITHUB_OUTPUT
+          echo "post_description=$POST_DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "post_hashtags=$POST_HASHTAGS" >> $GITHUB_OUTPUT
+          echo "post_image_url=$POST_IMAGE_URL" >> $GITHUB_OUTPUT
+        env:
+          TARGET_DATE: ${{ inputs.target_date }}
