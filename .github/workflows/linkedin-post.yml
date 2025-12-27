@@ -22,11 +22,7 @@ on:
     secrets:
       LINKEDIN_ACCESS_TOKEN:
         required: true
-      LINKEDIN_REFRESH_TOKEN:
-        required: true
       LINKEDIN_CLIENT_ID:
-        required: true
-      LINKEDIN_CLIENT_SECRET:
         required: true
 
 jobs:
@@ -36,15 +32,13 @@ jobs:
       - name: Post to LinkedIn
         env:
           ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-          REFRESH_TOKEN: ${{ secrets.LINKEDIN_REFRESH_TOKEN }}
           CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
           POST_TEXT: ${{ inputs.post_text }}
           ARTICLE_URL: ${{ inputs.article_url }}
           ARTICLE_TITLE: ${{ inputs.article_title }}
           ARTICLE_DESC: ${{ inputs.article_description }}
         run: |
-          # Try to get user info with current token
+          # Verify token and get user info
           echo "Verifying LinkedIn access token..."
           USER_RESPONSE=$(curl -s -w "\n%{http_code}" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -53,42 +47,14 @@ jobs:
           HTTP_CODE=$(echo "$USER_RESPONSE" | tail -1)
           USER_DATA=$(echo "$USER_RESPONSE" | sed '$d')
 
-          # If token expired, try to refresh
           if [ "$HTTP_CODE" == "401" ]; then
-            echo "Access token expired, attempting refresh..."
-
-            REFRESH_RESPONSE=$(curl -s -X POST "https://www.linkedin.com/oauth/v2/accessToken" \
-              -H "Content-Type: application/x-www-form-urlencoded" \
-              -d "grant_type=refresh_token" \
-              -d "refresh_token=$REFRESH_TOKEN" \
-              -d "client_id=$CLIENT_ID" \
-              -d "client_secret=$CLIENT_SECRET")
-
-            NEW_ACCESS_TOKEN=$(echo "$REFRESH_RESPONSE" | jq -r '.access_token // empty')
-
-            if [ -z "$NEW_ACCESS_TOKEN" ]; then
-              echo "Error: Failed to refresh access token"
-              echo "Response: $REFRESH_RESPONSE"
-              echo ""
-              echo "You may need to re-authorize the LinkedIn app."
-              echo "Visit: https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=$CLIENT_ID&redirect_uri=https://localhost&scope=openid%20profile%20w_member_social"
-              exit 1
-            fi
-
-            ACCESS_TOKEN="$NEW_ACCESS_TOKEN"
-            echo "Token refreshed successfully"
-
-            # Note: The new refresh_token should be saved, but GitHub Actions
-            # cannot update secrets directly. Log a warning.
-            NEW_REFRESH_TOKEN=$(echo "$REFRESH_RESPONSE" | jq -r '.refresh_token // empty')
-            if [ -n "$NEW_REFRESH_TOKEN" ] && [ "$NEW_REFRESH_TOKEN" != "$REFRESH_TOKEN" ]; then
-              echo "::warning::A new refresh token was issued. Update LINKEDIN_REFRESH_TOKEN secret manually to avoid re-authorization."
-            fi
-
-            # Retry getting user info
-            USER_DATA=$(curl -s \
-              -H "Authorization: Bearer $ACCESS_TOKEN" \
-              "https://api.linkedin.com/v2/userinfo")
+            echo "::error::LinkedIn access token has expired (tokens last 60 days)."
+            echo ""
+            echo "To re-authorize, visit:"
+            echo "https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=$CLIENT_ID&redirect_uri=https://localhost&scope=openid%20profile%20w_member_social"
+            echo ""
+            echo "Then exchange the code for a new token and update the LINKEDIN_ACCESS_TOKEN secret."
+            exit 1
           fi
 
           # Extract person URN from userinfo
@@ -165,7 +131,6 @@ jobs:
           RESPONSE_BODY=$(echo "$POST_RESPONSE" | sed '$d')
 
           if [ "$HTTP_CODE" == "201" ] || [ "$HTTP_CODE" == "200" ]; then
-            # Extract post ID from x-restli-id header or response
             POST_ID=$(echo "$RESPONSE_BODY" | jq -r '.id // empty')
             if [ -n "$POST_ID" ]; then
               echo "Posted to LinkedIn successfully!"
