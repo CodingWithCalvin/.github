@@ -50,6 +50,13 @@ jobs:
       post_hashtags: ${{ steps.parse.outputs.post_hashtags }}
       post_image_url: ${{ steps.parse.outputs.post_image_url }}
     steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          repository: CodingWithCalvin/.github
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
       - name: Detect posts from RSS feed
         id: parse
         run: |
@@ -77,70 +84,7 @@ jobs:
           fi
 
           # Parse RSS and find posts matching target date
-          POSTS_JSON=$(python3 - "$TARGET_DATE" "$RSS_FILE" << 'PYTHON_SCRIPT'
-import sys
-import xml.etree.ElementTree as ET
-import json
-from email.utils import parsedate_to_datetime
-
-target_date = sys.argv[1]
-rss_file = sys.argv[2]
-
-try:
-    tree = ET.parse(rss_file)
-    root = tree.getroot()
-except ET.ParseError as e:
-    print(json.dumps([]))
-    sys.exit(0)
-
-posts = []
-channel = root.find('channel')
-if channel is None:
-    print(json.dumps([]))
-    sys.exit(0)
-
-for item in channel.findall('item'):
-    pub_date_elem = item.find('pubDate')
-    if pub_date_elem is None:
-        continue
-
-    pub_date_str = pub_date_elem.text
-    try:
-        pub_date = parsedate_to_datetime(pub_date_str)
-    except (ValueError, TypeError):
-        continue
-
-    post_date = pub_date.strftime('%Y-%m-%d')
-
-    if post_date != target_date:
-        continue
-
-    title = item.find('title')
-    link = item.find('link')
-    description = item.find('description')
-    enclosure = item.find('enclosure')
-
-    categories = []
-    for cat in item.findall('category'):
-        if cat.text:
-            categories.append(cat.text)
-
-    hashtags = ' '.join(['#' + cat.replace(' ', '') for cat in categories])
-
-    post = {
-        'title': title.text if title is not None else '',
-        'url': link.text if link is not None else '',
-        'description': description.text if description is not None else '',
-        'categories': categories,
-        'hashtags': hashtags,
-        'image_url': enclosure.get('url') if enclosure is not None else '',
-        'pub_date': post_date
-    }
-    posts.append(post)
-
-print(json.dumps(posts))
-PYTHON_SCRIPT
-          )
+          POSTS_JSON=$(python3 .github/scripts/detect-rss-posts.py "$TARGET_DATE" "$RSS_FILE")
 
           rm -f "$RSS_FILE"
 
