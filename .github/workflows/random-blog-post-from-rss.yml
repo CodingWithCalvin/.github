@@ -1,0 +1,104 @@
+name: Random Blog Post From RSS
+
+on:
+  workflow_call:
+    inputs:
+      rss_url:
+        description: 'URL of the RSS feed'
+        required: true
+        type: string
+      exclude_days:
+        description: 'Exclude posts newer than this many days (default: 30)'
+        required: false
+        type: number
+        default: 30
+    outputs:
+      has_post:
+        description: 'Whether a post was found'
+        value: ${{ jobs.select.outputs.has_post }}
+      post_title:
+        description: 'Title of the selected post'
+        value: ${{ jobs.select.outputs.post_title }}
+      post_url:
+        description: 'URL of the selected post'
+        value: ${{ jobs.select.outputs.post_url }}
+      post_description:
+        description: 'Description of the selected post'
+        value: ${{ jobs.select.outputs.post_description }}
+      post_hashtags:
+        description: 'Hashtags from the post categories'
+        value: ${{ jobs.select.outputs.post_hashtags }}
+      post_image_url:
+        description: 'Image URL from the post enclosure'
+        value: ${{ jobs.select.outputs.post_image_url }}
+      post_date:
+        description: 'Publication date of the post'
+        value: ${{ jobs.select.outputs.post_date }}
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      has_post: ${{ steps.pick.outputs.has_post }}
+      post_title: ${{ steps.pick.outputs.post_title }}
+      post_url: ${{ steps.pick.outputs.post_url }}
+      post_description: ${{ steps.pick.outputs.post_description }}
+      post_hashtags: ${{ steps.pick.outputs.post_hashtags }}
+      post_image_url: ${{ steps.pick.outputs.post_image_url }}
+      post_date: ${{ steps.pick.outputs.post_date }}
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          repository: CodingWithCalvin/.github
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Select random post
+        id: pick
+        run: |
+          RSS_URL="${{ inputs.rss_url }}"
+          EXCLUDE_DAYS="${{ inputs.exclude_days }}"
+
+          echo "Fetching RSS from: $RSS_URL"
+          RSS_FILE=$(mktemp)
+          curl -s "$RSS_URL" > "$RSS_FILE"
+
+          if [ ! -s "$RSS_FILE" ]; then
+            echo "Failed to fetch RSS feed"
+            echo "has_post=false" >> $GITHUB_OUTPUT
+            rm -f "$RSS_FILE"
+            exit 0
+          fi
+
+          POST_JSON=$(python3 .github/scripts/random-rss-post.py "$RSS_FILE" "$EXCLUDE_DAYS")
+
+          rm -f "$RSS_FILE"
+
+          # Check if we got a post
+          POST_TITLE=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('title', ''))")
+
+          if [ -z "$POST_TITLE" ]; then
+            echo "No eligible posts found"
+            echo "has_post=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "has_post=true" >> $GITHUB_OUTPUT
+
+          POST_URL=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('url', ''))")
+          POST_DESCRIPTION=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('description', ''))")
+          POST_HASHTAGS=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('hashtags', ''))")
+          POST_IMAGE_URL=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('image_url', ''))")
+          POST_DATE=$(echo "$POST_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('pub_date', ''))")
+
+          echo "Title: $POST_TITLE"
+          echo "URL: $POST_URL"
+          echo "Date: $POST_DATE"
+
+          echo "post_title=$POST_TITLE" >> $GITHUB_OUTPUT
+          echo "post_url=$POST_URL" >> $GITHUB_OUTPUT
+          echo "post_description=$POST_DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "post_hashtags=$POST_HASHTAGS" >> $GITHUB_OUTPUT
+          echo "post_image_url=$POST_IMAGE_URL" >> $GITHUB_OUTPUT
+          echo "post_date=$POST_DATE" >> $GITHUB_OUTPUT
