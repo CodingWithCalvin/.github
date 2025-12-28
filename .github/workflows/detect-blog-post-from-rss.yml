@@ -65,86 +65,84 @@ jobs:
           fi
 
           echo "Fetching RSS from: $RSS_URL"
-          RSS_CONTENT=$(curl -s "$RSS_URL")
+          RSS_FILE=$(mktemp)
+          curl -s "$RSS_URL" > "$RSS_FILE"
 
-          if [ -z "$RSS_CONTENT" ]; then
+          if [ ! -s "$RSS_FILE" ]; then
             echo "Failed to fetch RSS feed"
             echo "has_posts=false" >> $GITHUB_OUTPUT
             echo "post_count=0" >> $GITHUB_OUTPUT
+            rm -f "$RSS_FILE"
             exit 0
           fi
 
           # Parse RSS and find posts matching target date
-          # Extract items and filter by pubDate
-          POSTS_JSON=$(echo "$RSS_CONTENT" | python3 << 'PYTHON_SCRIPT'
-          import sys
-          import xml.etree.ElementTree as ET
-          import json
-          from email.utils import parsedate_to_datetime
-          import os
+          POSTS_JSON=$(python3 - "$TARGET_DATE" "$RSS_FILE" << 'PYTHON_SCRIPT'
+import sys
+import xml.etree.ElementTree as ET
+import json
+from email.utils import parsedate_to_datetime
 
-          target_date = os.environ.get('TARGET_DATE', '')
-          rss_content = sys.stdin.read()
+target_date = sys.argv[1]
+rss_file = sys.argv[2]
 
-          try:
-              root = ET.fromstring(rss_content)
-          except ET.ParseError as e:
-              print(json.dumps([]))
-              sys.exit(0)
+try:
+    tree = ET.parse(rss_file)
+    root = tree.getroot()
+except ET.ParseError as e:
+    print(json.dumps([]))
+    sys.exit(0)
 
-          posts = []
-          channel = root.find('channel')
-          if channel is None:
-              print(json.dumps([]))
-              sys.exit(0)
+posts = []
+channel = root.find('channel')
+if channel is None:
+    print(json.dumps([]))
+    sys.exit(0)
 
-          for item in channel.findall('item'):
-              pub_date_elem = item.find('pubDate')
-              if pub_date_elem is None:
-                  continue
+for item in channel.findall('item'):
+    pub_date_elem = item.find('pubDate')
+    if pub_date_elem is None:
+        continue
 
-              pub_date_str = pub_date_elem.text
-              # Parse RFC 822 date format using email.utils (handles GMT correctly)
-              try:
-                  pub_date = parsedate_to_datetime(pub_date_str)
-              except (ValueError, TypeError):
-                  continue
+    pub_date_str = pub_date_elem.text
+    try:
+        pub_date = parsedate_to_datetime(pub_date_str)
+    except (ValueError, TypeError):
+        continue
 
-              post_date = pub_date.strftime('%Y-%m-%d')
+    post_date = pub_date.strftime('%Y-%m-%d')
 
-              if post_date != target_date:
-                  continue
+    if post_date != target_date:
+        continue
 
-              title = item.find('title')
-              link = item.find('link')
-              description = item.find('description')
-              enclosure = item.find('enclosure')
+    title = item.find('title')
+    link = item.find('link')
+    description = item.find('description')
+    enclosure = item.find('enclosure')
 
-              # Get categories
-              categories = []
-              for cat in item.findall('category'):
-                  if cat.text:
-                      categories.append(cat.text)
+    categories = []
+    for cat in item.findall('category'):
+        if cat.text:
+            categories.append(cat.text)
 
-              # Convert categories to hashtags
-              hashtags = ' '.join(['#' + cat.replace(' ', '') for cat in categories])
+    hashtags = ' '.join(['#' + cat.replace(' ', '') for cat in categories])
 
-              post = {
-                  'title': title.text if title is not None else '',
-                  'url': link.text if link is not None else '',
-                  'description': description.text if description is not None else '',
-                  'categories': categories,
-                  'hashtags': hashtags,
-                  'image_url': enclosure.get('url') if enclosure is not None else '',
-                  'pub_date': post_date
-              }
-              posts.append(post)
+    post = {
+        'title': title.text if title is not None else '',
+        'url': link.text if link is not None else '',
+        'description': description.text if description is not None else '',
+        'categories': categories,
+        'hashtags': hashtags,
+        'image_url': enclosure.get('url') if enclosure is not None else '',
+        'pub_date': post_date
+    }
+    posts.append(post)
 
-          print(json.dumps(posts))
-          PYTHON_SCRIPT
+print(json.dumps(posts))
+PYTHON_SCRIPT
           )
 
-          export TARGET_DATE="$TARGET_DATE"
+          rm -f "$RSS_FILE"
 
           POST_COUNT=$(echo "$POSTS_JSON" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))")
 
@@ -186,5 +184,3 @@ jobs:
           echo "post_description=$POST_DESCRIPTION" >> $GITHUB_OUTPUT
           echo "post_hashtags=$POST_HASHTAGS" >> $GITHUB_OUTPUT
           echo "post_image_url=$POST_IMAGE_URL" >> $GITHUB_OUTPUT
-        env:
-          TARGET_DATE: ${{ inputs.target_date }}
