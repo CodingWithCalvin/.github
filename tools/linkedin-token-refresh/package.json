@@ -1,0 +1,14 @@
+{
+  "name": "linkedin-token-refresh",
+  "version": "1.0.0",
+  "description": "CLI tool to refresh LinkedIn OAuth access token and update GitHub secret",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "open": "^10.1.0",
+    "libsodium-wrappers": "^0.7.13"
+  }
+}
