@@ -75,9 +75,9 @@ jobs:
           THUMBNAIL_URN=""
 
           if [ -n "$ARTICLE_URL" ]; then
-            # Fetch OG image from URL
+            # Fetch OG image from URL (use || true to prevent failure when no image found)
             echo "Fetching OG image from: $ARTICLE_URL"
-            OG_IMAGE=$(curl -s "$ARTICLE_URL" | grep -oP '(?<=property="og:image" content=")[^"]+' | head -1)
+            OG_IMAGE=$(curl -s "$ARTICLE_URL" | grep -oP '(?<=property="og:image" content=")[^"]+' | head -1 || true)
 
             if [ -n "$OG_IMAGE" ]; then
               echo "Found OG image: $OG_IMAGE"
