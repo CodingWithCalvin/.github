@@ -1,0 +1,128 @@
+name: VSIX Publish
+
+on:
+  workflow_call:
+    inputs:
+      extension-name:
+        description: 'The extension name (e.g., BreakpointNotifier, OpenBinFolder)'
+        required: true
+        type: string
+      display-name:
+        description: 'Human readable display name (e.g., "Breakpoint Notifier", "Open Bin Folder")'
+        required: true
+        type: string
+      marketplace-id:
+        description: 'VS Marketplace ID (e.g., CodingWithCalvin.VS-BreakpointNotifier)'
+        required: true
+        type: string
+      description:
+        description: 'Short description for social media embeds'
+        required: true
+        type: string
+      hashtags:
+        description: 'Additional hashtags for social posts (optional)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      VS_PAT:
+        description: 'Visual Studio Marketplace PAT'
+        required: true
+      BLUESKY_USERNAME:
+        description: 'BlueSky username'
+        required: true
+      BLUESKY_APP_PASSWORD:
+        description: 'BlueSky app password'
+        required: true
+      LINKEDIN_ACCESS_TOKEN:
+        description: 'LinkedIn access token'
+        required: true
+      LINKEDIN_CLIENT_ID:
+        description: 'LinkedIn client ID'
+        required: true
+
+env:
+  INFO_FILE: CodingWithCalvin.${{ inputs.extension-name }}.info
+  VSIX_FILE: CodingWithCalvin.${{ inputs.extension-name }}.vsix
+  MARKETPLACE_URL: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
+
+jobs:
+  changelog:
+    name: Generate Changelog
+    uses: CodingWithCalvin/.github/.github/workflows/generate-changelog.yml@main
+    secrets: inherit
+
+  publish:
+    needs: changelog
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.artifact_manifest.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 1. Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build.yml
+          workflow_conclusion: success
+
+      - name: 2. Parse Artifact Manifest
+        id: artifact_manifest
+        uses: ActionsTools/read-json-action@main
+        with:
+          file_path: ./artifact/${{ env.INFO_FILE }}
+
+      - name: 3. Create Tag & Release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          artifacts: ./artifact/${{ env.VSIX_FILE }}
+          body: ${{ needs.changelog.outputs.changelog }}
+          makeLatest: true
+          commit: ${{ steps.artifact_manifest.outputs.sha }}
+          tag: ${{ steps.artifact_manifest.outputs.version }}
+
+      - name: 4. Publish Release to Marketplace
+        if: success()
+        uses: CodingWithCalvin/GHA-VSMarketplacePublisher@v1
+        with:
+          marketplace-pat: ${{ secrets.VS_PAT }}
+          publish-manifest-path: ./resources/extension.manifest.json
+          vsix-path: ./artifact/${{ env.VSIX_FILE }}
+
+  notify-bluesky:
+    needs: publish
+    uses: CodingWithCalvin/.github/.github/workflows/bluesky-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.display-name }} v${{ needs.publish.outputs.version }} for #VisualStudio has been released!
+
+        [Check out the release notes here!](https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.version }})
+
+        #dotnet #vsix ${{ inputs.hashtags }}
+      embed_url: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
+      embed_title: ${{ inputs.display-name }} for Visual Studio
+      embed_description: ${{ inputs.description }}
+    secrets:
+      BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+
+  notify-linkedin:
+    needs: publish
+    uses: CodingWithCalvin/.github/.github/workflows/linkedin-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.display-name }} v${{ needs.publish.outputs.version }} for #VisualStudio has been released!
+
+        Check out the release notes: https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.version }}
+
+        #dotnet #vsix ${{ inputs.hashtags }}
+      article_url: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
+      article_title: ${{ inputs.display-name }} for Visual Studio
+      article_description: ${{ inputs.description }}
+    secrets:
+      LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+      LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
