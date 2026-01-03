@@ -1,0 +1,48 @@
+name: VSIX Build
+
+on:
+  workflow_call:
+    inputs:
+      extension-name:
+        description: 'The extension name (e.g., BreakpointNotifier, OpenBinFolder)'
+        required: true
+        type: string
+
+env:
+  PROJECT_PATH: src/CodingWithCalvin.${{ inputs.extension-name }}/CodingWithCalvin.${{ inputs.extension-name }}.csproj
+  OUTPUT_PATH: src/CodingWithCalvin.${{ inputs.extension-name }}/bin/Release
+  INFO_FILE: CodingWithCalvin.${{ inputs.extension-name }}.info
+  VSIX_FILE: CodingWithCalvin.${{ inputs.extension-name }}.vsix
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 1. Generate Version
+      id: version
+      run: |
+        $year = (Get-Date).Year
+        $month = (Get-Date).Month
+        $day = (Get-Date).Day
+        $version = "$year.$month.$day.${{ github.run_number }}"
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    - name: 2. Build Project
+      run: dotnet build ${{ env.PROJECT_PATH }} -c Release -p:SetVsixVersion=${{ steps.version.outputs.version }}
+
+    - name: 3. Create Information File
+      uses: jsdaniell/create-json@v1.2.3
+      with:
+        name: '${{ env.OUTPUT_PATH }}/${{ env.INFO_FILE }}'
+        json: '{"sha":"${{ github.sha }}", "version":"${{ steps.version.outputs.version }}"}'
+
+    - name: 4. Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        path: |
+          ${{ env.OUTPUT_PATH }}/${{ env.INFO_FILE }}
+          ${{ env.OUTPUT_PATH }}/${{ env.VSIX_FILE }}
