@@ -123,7 +123,7 @@ if ($All) {
     Write-Host "Fetching all repositories in $Org..." -ForegroundColor Cyan
     Write-Host ""
 
-    $repos = gh repo list $Org --limit 500 --no-archived --json name --jq '.[].name' | Sort-Object
+    $repos = gh repo list $Org --limit 500 --no-archived --visibility public --json name --jq '.[].name' | Sort-Object
 
     if (-not $repos) {
         Write-Host "Error: No repositories found or unable to fetch repos" -ForegroundColor Red
