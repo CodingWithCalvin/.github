@@ -114,6 +114,15 @@ function Setup-Repository {
     }
     Write-Host ""
 
+    Write-Host "3. Disabling CodeQL..." -ForegroundColor Yellow
+    $codeqlResult = gh api "repos/$FullRepo/code-scanning/default-setup" -X PATCH -F state=not-configured 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "   - CodeQL default setup: disabled" -ForegroundColor Green
+    } else {
+        Write-Host "   - CodeQL: not configured or already disabled" -ForegroundColor Yellow
+    }
+    Write-Host ""
+
     Write-Host "Done! Repository $FullRepo is configured." -ForegroundColor Cyan
     Write-Host ""
 }
