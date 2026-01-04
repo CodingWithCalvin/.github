@@ -19,7 +19,7 @@ This organization is home to the open source projects of [Calvin Allen](https://
 
 ---
 
-## 🚀 Featured Projects
+## 📦 Projects
 
 <table>
 <tr>
@@ -67,6 +67,11 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-GitRanger?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
+<td>🗄️ <a href="https://github.com/CodingWithCalvin/VS-CouchbaseExplorer">VS-CouchbaseExplorer</a></td>
+<td>Couchbase & Capella data management in VS</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-CouchbaseExplorer?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
 <td>🧹 <a href="https://github.com/CodingWithCalvin/VS-SuperClean">VS-SuperClean</a></td>
 <td>Recursively clean bin/obj folders</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-SuperClean?style=for-the-badge&logo=github" alt="Stars"></td>
@@ -85,6 +90,24 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td>📂 <a href="https://github.com/CodingWithCalvin/VS-OpenBinFolder">VS-OpenBinFolder</a></td>
 <td>Quick access to output directory</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-OpenBinFolder?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td colspan="3"><strong>⚙️ GitHub Actions</strong></td>
+</tr>
+<tr>
+<td>🚀 <a href="https://github.com/CodingWithCalvin/GHA-VSMarketplacePublisher">GHA-VSMarketplacePublisher</a></td>
+<td>Publish extensions to the VS Marketplace</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-VSMarketplacePublisher?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>🚀 <a href="https://github.com/CodingWithCalvin/GHA-JBMarketplacePublisher">GHA-JBMarketplacePublisher</a></td>
+<td>Publish plugins to the JetBrains Marketplace</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-JBMarketplacePublisher?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>🔢 <a href="https://github.com/CodingWithCalvin/GHA-VSVsixVersioner">GHA-VSVsixVersioner</a></td>
+<td>Version Visual Studio extensions (VSIX)</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-VSVsixVersioner?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 </table>
 
