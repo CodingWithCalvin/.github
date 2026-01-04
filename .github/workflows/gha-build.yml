@@ -1,0 +1,37 @@
+name: GHA Build
+
+on:
+  workflow_call:
+    inputs:
+      node-version-file:
+        description: 'Path to Node version file (default: .node-version)'
+        required: false
+        type: string
+        default: '.node-version'
+
+jobs:
+  build:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Check Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run ci-test

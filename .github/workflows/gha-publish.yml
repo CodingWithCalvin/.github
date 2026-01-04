@@ -1,0 +1,129 @@
+name: GHA Publish
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.0)'
+        required: true
+        type: string
+      action-name:
+        description: 'Human readable action name (e.g., "Visual Studio VSIX Versioner")'
+        required: true
+        type: string
+      action-slug:
+        description: 'GitHub Marketplace slug (e.g., "visual-studio-vsix-versioner")'
+        required: true
+        type: string
+      action-description:
+        description: 'Short description for social media embeds'
+        required: true
+        type: string
+      node-version-file:
+        description: 'Path to Node version file (default: .node-version)'
+        required: false
+        type: string
+        default: '.node-version'
+    secrets:
+      BLUESKY_USERNAME:
+        description: 'Bluesky username'
+        required: true
+      BLUESKY_APP_PASSWORD:
+        description: 'Bluesky app password'
+        required: true
+      LINKEDIN_ACCESS_TOKEN:
+        description: 'LinkedIn access token'
+        required: true
+      LINKEDIN_CLIENT_ID:
+        description: 'LinkedIn client ID'
+        required: true
+
+jobs:
+  changelog:
+    uses: CodingWithCalvin/.github/.github/workflows/generate-changelog.yml@main
+    secrets: inherit
+
+  release:
+    needs: changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ inputs.version }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Rebuild dist
+        run: npm run bundle
+
+      - name: Commit dist changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dist/
+          git diff --staged --quiet || git commit -m "chore: rebuild dist for v${{ inputs.version }}"
+          git push
+
+      - name: Create and push tag
+        run: |
+          git tag v${{ inputs.version }}
+          git push origin v${{ inputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          body: ${{ needs.changelog.outputs.changelog }}
+
+  notify-bluesky:
+    needs: release
+    uses: CodingWithCalvin/.github/.github/workflows/bluesky-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.action-name }} v${{ needs.release.outputs.version }} has been released!
+
+        ${{ inputs.action-description }}
+
+        [📋 Release Notes](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.release.outputs.version }})
+        [📦 GitHub Marketplace](https://github.com/marketplace/actions/${{ inputs.action-slug }})
+
+        #github #githubactions #devops #automation
+      embed_url: https://github.com/marketplace/actions/${{ inputs.action-slug }}
+      embed_title: ${{ inputs.action-name }}
+      embed_description: ${{ inputs.action-description }}
+    secrets:
+      BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+
+  notify-linkedin:
+    needs: release
+    uses: CodingWithCalvin/.github/.github/workflows/linkedin-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.action-name }} v${{ needs.release.outputs.version }} has been released!
+
+        ${{ inputs.action-description }}
+
+        📋 Release Notes: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.release.outputs.version }}
+        📦 GitHub Marketplace: https://github.com/marketplace/actions/${{ inputs.action-slug }}
+
+        #github #githubactions #devops #automation
+      article_url: https://github.com/marketplace/actions/${{ inputs.action-slug }}
+      article_title: ${{ inputs.action-name }}
+      article_description: ${{ inputs.action-description }}
+    secrets:
+      LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+      LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
