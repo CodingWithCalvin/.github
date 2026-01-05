@@ -1,0 +1,98 @@
+name: Create GitHub Discussion
+
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: 'The title of the discussion'
+        required: true
+        type: string
+      body:
+        description: 'The body content of the discussion (markdown)'
+        required: true
+        type: string
+      category:
+        description: 'The discussion category name'
+        required: false
+        type: string
+        default: 'Announcements'
+    outputs:
+      discussion_url:
+        description: 'The URL of the created discussion'
+        value: ${{ jobs.create.outputs.discussion_url }}
+
+jobs:
+  create:
+    name: Create Discussion
+    runs-on: ubuntu-latest
+    outputs:
+      discussion_url: ${{ steps.discussion.outputs.discussion_url }}
+
+    steps:
+    - name: Create GitHub Discussion
+      id: discussion
+      run: |
+        # Get repository ID and category ID
+        REPO_DATA=$(gh api graphql -f query='
+          query($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              id
+              discussionCategories(first: 20) {
+                nodes {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        ' -f owner="${{ github.repository_owner }}" -f repo="${{ github.event.repository.name }}")
+
+        REPO_ID=$(echo "$REPO_DATA" | jq -r '.data.repository.id')
+        CATEGORY_ID=$(echo "$REPO_DATA" | jq -r '.data.repository.discussionCategories.nodes[] | select(.name == "${{ inputs.category }}") | .id')
+
+        if [ -z "$REPO_ID" ] || [ "$REPO_ID" == "null" ]; then
+          echo "Error: Could not get repository ID"
+          echo "Response: $REPO_DATA"
+          exit 1
+        fi
+
+        if [ -z "$CATEGORY_ID" ] || [ "$CATEGORY_ID" == "null" ]; then
+          echo "Error: Could not find category '${{ inputs.category }}'"
+          echo "Available categories:"
+          echo "$REPO_DATA" | jq -r '.data.repository.discussionCategories.nodes[].name'
+          exit 1
+        fi
+
+        echo "Repository ID: $REPO_ID"
+        echo "Category '${{ inputs.category }}' ID: $CATEGORY_ID"
+
+        # Create the discussion
+        DISCUSSION_RESULT=$(gh api graphql -f query='
+          mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+            createDiscussion(input: {
+              repositoryId: $repositoryId
+              categoryId: $categoryId
+              title: $title
+              body: $body
+            }) {
+              discussion {
+                url
+              }
+            }
+          }
+        ' -f repositoryId="$REPO_ID" -f categoryId="$CATEGORY_ID" -f title="${{ inputs.title }}" -f body="$DISCUSSION_BODY")
+
+        DISCUSSION_URL=$(echo "$DISCUSSION_RESULT" | jq -r '.data.createDiscussion.discussion.url')
+
+        if [ -z "$DISCUSSION_URL" ] || [ "$DISCUSSION_URL" == "null" ]; then
+          echo "Error: Failed to create discussion"
+          echo "Response: $DISCUSSION_RESULT"
+          exit 1
+        fi
+
+        echo "✓ Created discussion: $DISCUSSION_URL"
+        echo "discussion_url=$DISCUSSION_URL" >> $GITHUB_OUTPUT
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        DISCUSSION_BODY: ${{ inputs.body }}
