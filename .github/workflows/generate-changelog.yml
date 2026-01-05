@@ -45,7 +45,8 @@ jobs:
         # Each category stores entries with issue number prefix for sorting: "NNNN|entry"
         declare -a HIGHLIGHTS
         declare -a BUGS           # fix
-        declare -a IMPROVEMENTS   # perf, refactor
+        declare -a PERFORMANCE    # perf
+        declare -a IMPROVEMENTS   # refactor
         declare -a FEATURES       # feat
         declare -a MAINTENANCE    # docs, style, test, build, ci, chore
         declare -a OTHER          # anything else (except revert which is omitted)
@@ -128,9 +129,14 @@ jobs:
           SORTABLE_ENTRY="${SORT_NUM}|${ENTRY}"
 
           # Categorize by conventional commit prefix in PR title
-          if echo "$PR_TITLE" | grep -qE "^fix(\(|:)"; then
+          # CI scope always goes to maintenance regardless of type
+          if echo "$PR_TITLE" | grep -qE "^\w+\(ci\):"; then
+            MAINTENANCE+=("$SORTABLE_ENTRY")
+          elif echo "$PR_TITLE" | grep -qE "^fix(\(|:)"; then
             BUGS+=("$SORTABLE_ENTRY")
-          elif echo "$PR_TITLE" | grep -qE "^(perf|refactor)(\(|:)"; then
+          elif echo "$PR_TITLE" | grep -qE "^perf(\(|:)"; then
+            PERFORMANCE+=("$SORTABLE_ENTRY")
+          elif echo "$PR_TITLE" | grep -qE "^refactor(\(|:)"; then
             IMPROVEMENTS+=("$SORTABLE_ENTRY")
           elif echo "$PR_TITLE" | grep -qE "^feat(\(|:)"; then
             FEATURES+=("$SORTABLE_ENTRY")
@@ -161,7 +167,7 @@ jobs:
           CHANGELOG="${CHANGELOG}"$'\n'
         fi
 
-        # Add categorized sections in order: Bug Fixes, Performance & Improvements, New Features, Maintenance, Other
+        # Add categorized sections in order: Bug Fixes, Performance, Improvements, New Features, Maintenance, Other
         if [ ${#BUGS[@]} -gt 0 ]; then
           CHANGELOG="${CHANGELOG}### 🐛 Bug Fixes"$'\n\n'
           while IFS= read -r entry; do
@@ -170,8 +176,16 @@ jobs:
           CHANGELOG="${CHANGELOG}"$'\n'
         fi
 
+        if [ ${#PERFORMANCE[@]} -gt 0 ]; then
+          CHANGELOG="${CHANGELOG}### ⚡ Performance"$'\n\n'
+          while IFS= read -r entry; do
+            CHANGELOG="${CHANGELOG}${entry}"$'\n'
+          done < <(sort_entries PERFORMANCE)
+          CHANGELOG="${CHANGELOG}"$'\n'
+        fi
+
         if [ ${#IMPROVEMENTS[@]} -gt 0 ]; then
-          CHANGELOG="${CHANGELOG}### ⚡ Performance & Improvements"$'\n\n'
+          CHANGELOG="${CHANGELOG}### 🔨 Improvements"$'\n\n'
           while IFS= read -r entry; do
             CHANGELOG="${CHANGELOG}${entry}"$'\n'
           done < <(sort_entries IMPROVEMENTS)
