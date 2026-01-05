@@ -36,6 +36,11 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.cli?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
+<td>📖 <a href="https://github.com/CodingWithCalvin/dtvem.io">dtvem.io</a></td>
+<td>Documentation website for dtvem</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.io?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
 <td>🖥️ <a href="https://github.com/CodingWithCalvin/VSToolbox">VSToolbox</a></td>
 <td>System tray app for managing multiple VS installations</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSToolbox?style=for-the-badge&logo=github" alt="Stars"></td>
@@ -55,6 +60,11 @@ This organization is home to the open source projects of [Calvin Allen](https://
 </tr>
 <tr>
 <td colspan="3"><strong>🔌 Visual Studio Extensions</strong></td>
+</tr>
+<tr>
+<td>📋 <a href="https://github.com/CodingWithCalvin/VS-VsixManifestDesigner">VS-VsixManifestDesigner</a></td>
+<td>Modern visual designer for VSIX manifest files</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-VsixManifestDesigner?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
 <td>🔄 <a href="https://github.com/CodingWithCalvin/VS-ProjectRenamifier">VS-ProjectRenamifier</a></td>
