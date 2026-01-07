@@ -41,8 +41,9 @@ jobs:
           COMMIT_RANGE="${PREVIOUS_TAG}..HEAD"
         fi
 
-        # Collect highlights from PR comments and categorize commits
+        # Collect highlights and breaking changes from PR comments and categorize commits
         # Each category stores entries with issue number prefix for sorting: "NNNN|entry"
+        declare -a BREAKING_CHANGES
         declare -a HIGHLIGHTS
         declare -a BUGS           # fix
         declare -a PERFORMANCE    # perf
@@ -105,6 +106,13 @@ jobs:
             continue
           fi
 
+          # Check for /breaking-change command
+          BREAKING_CHANGE=$(echo "$PR_COMMENTS" | grep "^/breaking-change " | sed 's|^/breaking-change ||' | head -1 || echo "")
+          if [ -n "$BREAKING_CHANGE" ]; then
+            echo "  Found /breaking-change: $BREAKING_CHANGE"
+            BREAKING_CHANGES+=("$BREAKING_CHANGE")
+          fi
+
           # Check for /release-note command
           RELEASE_NOTE=$(echo "$PR_COMMENTS" | grep "^/release-note " | sed 's|^/release-note ||' | head -1 || echo "")
           if [ -n "$RELEASE_NOTE" ]; then
@@ -158,9 +166,18 @@ jobs:
         # Build changelog
         CHANGELOG=""
 
+        # Add Breaking Changes section if any /breaking-change entries exist
+        if [ ${#BREAKING_CHANGES[@]} -gt 0 ]; then
+          CHANGELOG="### 🚨 Breaking Changes"$'\n\n'
+          for BREAKING_CHANGE in "${BREAKING_CHANGES[@]}"; do
+            CHANGELOG="${CHANGELOG}- ${BREAKING_CHANGE}"$'\n'
+          done
+          CHANGELOG="${CHANGELOG}"$'\n'
+        fi
+
         # Add Highlights section if any /release-note entries exist
         if [ ${#HIGHLIGHTS[@]} -gt 0 ]; then
-          CHANGELOG="### ✨ Highlights"$'\n\n'
+          CHANGELOG="${CHANGELOG}### ✨ Highlights"$'\n\n'
           for HIGHLIGHT in "${HIGHLIGHTS[@]}"; do
             CHANGELOG="${CHANGELOG}- ${HIGHLIGHT}"$'\n'
           done
