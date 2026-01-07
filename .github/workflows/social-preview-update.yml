@@ -1,0 +1,39 @@
+name: Update Social Previews
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  update-previews:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout social preview generator
+        uses: actions/checkout@v4
+        with:
+          repository: CodingWithCalvin/GH-SocialPreviewGenerator
+          path: generator
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: generator/.node-version
+          cache: npm
+          cache-dependency-path: generator/package-lock.json
+
+      - name: Install dependencies
+        working-directory: generator
+        run: npm ci
+
+      - name: Build
+        working-directory: generator
+        run: npm run build
+
+      - name: Generate and upload social previews
+        working-directory: generator
+        env:
+          GITHUB_TOKEN: ${{ secrets.SOCIAL_PREVIEW_TOKEN }}
+        run: node dist/index.js generate-all CodingWithCalvin
