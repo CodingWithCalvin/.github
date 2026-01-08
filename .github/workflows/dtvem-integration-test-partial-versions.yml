@@ -104,10 +104,22 @@ jobs:
         shell: bash
 
       - name: "Test major-only version (node ${{ inputs.node_major }})"
+        id: node_major_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Node.js with major-only version: ${{ inputs.node_major }}"
-          ./dtvem${{ matrix.ext }} install node ${{ inputs.node_major }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output (format: "Resolved X to Y")
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            # If no "Resolved" message, the version was already full - extract from success message
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Node\.js \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list node 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -122,10 +134,21 @@ jobs:
         shell: bash
 
       - name: "Test major.minor version (node ${{ inputs.node_major_minor }})"
+        id: node_minor_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Node.js with major.minor version: ${{ inputs.node_major_minor }}"
-          ./dtvem${{ matrix.ext }} install node ${{ inputs.node_major_minor }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major_minor }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Node\.js \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list node 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -142,7 +165,9 @@ jobs:
       - name: "Verify shim works with resolved version"
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} global node ${{ inputs.node_major }}
+          RESOLVED_VERSION="${{ steps.node_major_install.outputs.resolved_version }}"
+          echo "Setting global to resolved version: $RESOLVED_VERSION"
+          ./dtvem${{ matrix.ext }} global node "$RESOLVED_VERSION"
           NODE_VERSION=$(node --version)
           echo "Node version from shim: $NODE_VERSION"
           if [[ "$NODE_VERSION" != *"${{ inputs.node_major }}."* ]]; then
@@ -182,8 +207,14 @@ jobs:
         if: always()
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} uninstall node ${{ inputs.node_major }} --yes 2>/dev/null || true
-          ./dtvem${{ matrix.ext }} uninstall node ${{ inputs.node_major_minor }} --yes 2>/dev/null || true
+          MAJOR_RESOLVED="${{ steps.node_major_install.outputs.resolved_version }}"
+          MINOR_RESOLVED="${{ steps.node_minor_install.outputs.resolved_version }}"
+          if [ -n "$MAJOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall node "$MAJOR_RESOLVED" --yes 2>/dev/null || true
+          fi
+          if [ -n "$MINOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall node "$MINOR_RESOLVED" --yes 2>/dev/null || true
+          fi
         shell: bash
 
   partial-version-python:
@@ -252,10 +283,21 @@ jobs:
         shell: bash
 
       - name: "Test major-only version (python ${{ inputs.python_major }})"
+        id: python_major_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Python with major-only version: ${{ inputs.python_major }}"
-          ./dtvem${{ matrix.ext }} install python ${{ inputs.python_major }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Python \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list python 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -270,10 +312,21 @@ jobs:
         shell: bash
 
       - name: "Test major.minor version (python ${{ inputs.python_major_minor }})"
+        id: python_minor_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Python with major.minor version: ${{ inputs.python_major_minor }}"
-          ./dtvem${{ matrix.ext }} install python ${{ inputs.python_major_minor }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major_minor }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Python \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list python 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -290,7 +343,9 @@ jobs:
       - name: "Verify shim works with resolved version"
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} global python ${{ inputs.python_major }}
+          RESOLVED_VERSION="${{ steps.python_major_install.outputs.resolved_version }}"
+          echo "Setting global to resolved version: $RESOLVED_VERSION"
+          ./dtvem${{ matrix.ext }} global python "$RESOLVED_VERSION"
           PYTHON_VERSION=$(python --version 2>&1)
           echo "Python version from shim: $PYTHON_VERSION"
           if [[ "$PYTHON_VERSION" != *"${{ inputs.python_major }}."* ]]; then
@@ -317,8 +372,14 @@ jobs:
         if: always()
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} uninstall python ${{ inputs.python_major }} --yes 2>/dev/null || true
-          ./dtvem${{ matrix.ext }} uninstall python ${{ inputs.python_major_minor }} --yes 2>/dev/null || true
+          MAJOR_RESOLVED="${{ steps.python_major_install.outputs.resolved_version }}"
+          MINOR_RESOLVED="${{ steps.python_minor_install.outputs.resolved_version }}"
+          if [ -n "$MAJOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall python "$MAJOR_RESOLVED" --yes 2>/dev/null || true
+          fi
+          if [ -n "$MINOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall python "$MINOR_RESOLVED" --yes 2>/dev/null || true
+          fi
         shell: bash
 
   partial-version-ruby:
@@ -387,10 +448,21 @@ jobs:
         shell: bash
 
       - name: "Test major-only version (ruby ${{ inputs.ruby_major }})"
+        id: ruby_major_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Ruby with major-only version: ${{ inputs.ruby_major }}"
-          ./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Ruby \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list ruby 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -405,10 +477,21 @@ jobs:
         shell: bash
 
       - name: "Test major.minor version (ruby ${{ inputs.ruby_major_minor }})"
+        id: ruby_minor_install
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Ruby with major.minor version: ${{ inputs.ruby_major_minor }}"
-          ./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major_minor }}
+          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major_minor }} 2>&1 | tee /dev/stderr)
+
+          # Extract resolved version from output
+          # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
+          CLEAN_OUTPUT=$(echo "$OUTPUT" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*Resolved [^ ]* to \([0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED=$(echo "$CLEAN_OUTPUT" | sed -n 's/.*installed Ruby \([0-9.]*\).*/\1/p' | head -1)
+          fi
+          echo "Resolved version: $RESOLVED"
+          echo "resolved_version=$RESOLVED" >> $GITHUB_OUTPUT
 
           echo "Verifying installation..."
           INSTALLED=$(./dtvem${{ matrix.ext }} list ruby 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
@@ -425,7 +508,9 @@ jobs:
       - name: "Verify shim works with resolved version"
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} global ruby ${{ inputs.ruby_major }}
+          RESOLVED_VERSION="${{ steps.ruby_major_install.outputs.resolved_version }}"
+          echo "Setting global to resolved version: $RESOLVED_VERSION"
+          ./dtvem${{ matrix.ext }} global ruby "$RESOLVED_VERSION"
           RUBY_VERSION=$(ruby --version 2>&1)
           echo "Ruby version from shim: $RUBY_VERSION"
           if [[ "$RUBY_VERSION" != *"${{ inputs.ruby_major }}."* ]]; then
@@ -452,6 +537,12 @@ jobs:
         if: always()
         run: |
           cd "$TEST_WORKSPACE"
-          ./dtvem${{ matrix.ext }} uninstall ruby ${{ inputs.ruby_major }} --yes 2>/dev/null || true
-          ./dtvem${{ matrix.ext }} uninstall ruby ${{ inputs.ruby_major_minor }} --yes 2>/dev/null || true
+          MAJOR_RESOLVED="${{ steps.ruby_major_install.outputs.resolved_version }}"
+          MINOR_RESOLVED="${{ steps.ruby_minor_install.outputs.resolved_version }}"
+          if [ -n "$MAJOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall ruby "$MAJOR_RESOLVED" --yes 2>/dev/null || true
+          fi
+          if [ -n "$MINOR_RESOLVED" ]; then
+            ./dtvem${{ matrix.ext }} uninstall ruby "$MINOR_RESOLVED" --yes 2>/dev/null || true
+          fi
         shell: bash
