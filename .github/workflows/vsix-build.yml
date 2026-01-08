@@ -14,7 +14,7 @@ on:
 
 env:
   PROJECT_PATH: src/CodingWithCalvin.${{ inputs.extension-name }}/CodingWithCalvin.${{ inputs.extension-name }}.csproj
-  OUTPUT_PATH: src/CodingWithCalvin.${{ inputs.extension-name }}/bin/Release
+  OUTPUT_PATH: src/CodingWithCalvin.${{ inputs.extension-name }}/bin/Release/net48
   INFO_FILE: CodingWithCalvin.${{ inputs.extension-name }}.info
   VSIX_FILE: CodingWithCalvin.${{ inputs.extension-name }}.vsix
   HONEYCOMB_CONFIG: src/CodingWithCalvin.${{ inputs.extension-name }}/HoneycombConfig.cs
