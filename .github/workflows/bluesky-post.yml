@@ -23,6 +23,13 @@ on:
         description: 'Optional image URL for the embed card (avoids fetching from OG tags)'
         required: false
         type: string
+    outputs:
+      post_id:
+        description: 'The BlueSky post ID (rkey)'
+        value: ${{ jobs.post.outputs.post_id }}
+      post_uri:
+        description: 'The full AT Protocol URI'
+        value: ${{ jobs.post.outputs.post_uri }}
     secrets:
       BLUESKY_USERNAME:
         required: true
@@ -32,8 +39,12 @@ on:
 jobs:
   post:
     runs-on: ubuntu-latest
+    outputs:
+      post_id: ${{ steps.create-post.outputs.post_id }}
+      post_uri: ${{ steps.create-post.outputs.post_uri }}
     steps:
       - name: Post to BlueSky
+        id: create-post
         env:
           POST_INPUT: ${{ toJSON(inputs.post_text) }}
           EMBED_URL: ${{ inputs.embed_url }}
@@ -310,4 +321,8 @@ jobs:
           POST_URL="https://bsky.app/profile/${{ secrets.BLUESKY_USERNAME }}/post/$POST_ID"
 
           echo "✓ Posted to BlueSky: $POST_URL"
+
+          # Output post ID and URI for downstream jobs
+          echo "post_id=$POST_ID" >> $GITHUB_OUTPUT
+          echo "post_uri=$POST_URI" >> $GITHUB_OUTPUT
         shell: bash
