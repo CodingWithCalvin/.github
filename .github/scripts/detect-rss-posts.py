@@ -22,6 +22,9 @@ def parse_rss(rss_file: str, target_date: str) -> list[dict]:
     if channel is None:
         return []
 
+    # Define namespaces for custom elements
+    namespaces = {'bluesky': 'https://bsky.app/ns'}
+
     posts = []
     for item in channel.findall('item'):
         pub_date_elem = item.find('pubDate')
@@ -37,6 +40,11 @@ def parse_rss(rss_file: str, target_date: str) -> list[dict]:
         post_date = pub_date.strftime('%Y-%m-%d')
 
         if post_date != target_date:
+            continue
+
+        # Skip posts that already have a blueskyPostId (already announced)
+        bluesky_post_id = item.find('bluesky:postId', namespaces)
+        if bluesky_post_id is not None and bluesky_post_id.text:
             continue
 
         title = item.find('title')
