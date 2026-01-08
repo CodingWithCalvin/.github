@@ -38,8 +38,9 @@ jobs:
           done
           issue_authors=$(echo "$issue_authors" | sort -u)
 
-          # Combine and deduplicate
-          all_contributors=$(echo -e "$code_contributors\n$issue_authors" | sort -u | grep -v '^$')
+          # Combine and deduplicate, ensuring CalvinAllen is always first
+          other_contributors=$(echo -e "$code_contributors\n$issue_authors" | sort -u | grep -v '^$' | grep -v '^CalvinAllen$')
+          all_contributors=$(echo -e "CalvinAllen\n$other_contributors" | grep -v '^$')
 
           # Build markdown for each contributor
           contributor_md=""
