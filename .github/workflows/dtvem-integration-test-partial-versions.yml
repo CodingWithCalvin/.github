@@ -108,7 +108,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Node.js with major-only version: ${{ inputs.node_major }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output (format: "Resolved X to Y")
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
@@ -138,7 +139,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Node.js with major.minor version: ${{ inputs.node_major_minor }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major_minor }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install node ${{ inputs.node_major_minor }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
@@ -287,7 +289,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Python with major-only version: ${{ inputs.python_major }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
@@ -316,7 +319,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Python with major.minor version: ${{ inputs.python_major_minor }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major_minor }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install python ${{ inputs.python_major_minor }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
@@ -452,7 +456,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Ruby with major-only version: ${{ inputs.ruby_major }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
@@ -481,7 +486,8 @@ jobs:
         run: |
           cd "$TEST_WORKSPACE"
           echo "Installing Ruby with major.minor version: ${{ inputs.ruby_major_minor }}"
-          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major_minor }} 2>&1 | tee /dev/stderr)
+          OUTPUT=$(./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major_minor }} 2>&1)
+          echo "$OUTPUT"
 
           # Extract resolved version from output
           # Use sed for cross-platform compatibility (macOS doesn't have grep -P)
