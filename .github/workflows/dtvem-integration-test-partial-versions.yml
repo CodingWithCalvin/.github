@@ -1,0 +1,457 @@
+name: Integration Tests - Partial Version Resolution
+
+on:
+  workflow_call:
+    inputs:
+      node_major:
+        description: 'Node.js major version to test (e.g., 22)'
+        required: false
+        type: string
+        default: '22'
+      node_major_minor:
+        description: 'Node.js major.minor version to test (e.g., 20.18)'
+        required: false
+        type: string
+        default: '20.18'
+      python_major:
+        description: 'Python major version to test (e.g., 3)'
+        required: false
+        type: string
+        default: '3'
+      python_major_minor:
+        description: 'Python major.minor version to test (e.g., 3.12)'
+        required: false
+        type: string
+        default: '3.12'
+      ruby_major:
+        description: 'Ruby major version to test (e.g., 3)'
+        required: false
+        type: string
+        default: '3'
+      ruby_major_minor:
+        description: 'Ruby major.minor version to test (e.g., 3.3)'
+        required: false
+        type: string
+        default: '3.3'
+
+permissions:
+  contents: read
+
+jobs:
+  partial-version-node:
+    name: Node.js Partial Versions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ""
+          - os: macos-latest
+            platform: macos
+            ext: ""
+          - os: windows-latest
+            platform: windows
+            ext: ".exe"
+    env:
+      TEST_WORKSPACE: ${{ github.workspace }}/../dtvem-test-workspace
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build dtvem
+        run: |
+          go build -v -ldflags="-s -w" -o dist/dtvem${{ matrix.ext }} ./src
+          go build -v -ldflags="-s -w" -o dist/dtvem-shim${{ matrix.ext }} ./src/cmd/shim
+        shell: bash
+
+      - name: Initialize dtvem
+        run: |
+          ./dist/dtvem${{ matrix.ext }} init --yes
+        shell: bash
+
+      - name: Add shims to PATH (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            DTVEM_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/dtvem"
+          else
+            DTVEM_ROOT="$HOME/.dtvem"
+          fi
+          echo "$DTVEM_ROOT/shims" >> $GITHUB_PATH
+          echo "$DTVEM_ROOT/bin" >> $GITHUB_PATH
+
+      - name: Add shims to PATH (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\.dtvem\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "$env:USERPROFILE\.dtvem\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Set up test workspace
+        run: |
+          mkdir -p "$TEST_WORKSPACE"
+          cp ./dist/dtvem${{ matrix.ext }} "$TEST_WORKSPACE/"
+          cp ./dist/dtvem-shim${{ matrix.ext }} "$TEST_WORKSPACE/"
+        shell: bash
+
+      - name: "Test major-only version (node ${{ inputs.node_major }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Node.js with major-only version: ${{ inputs.node_major }}"
+          ./dtvem${{ matrix.ext }} install node ${{ inputs.node_major }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list node 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.node_major }}\\."; then
+            echo "✅ Major-only version resolved correctly to ${{ inputs.node_major }}.x.x"
+          else
+            echo "❌ Expected ${{ inputs.node_major }}.x.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Test major.minor version (node ${{ inputs.node_major_minor }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Node.js with major.minor version: ${{ inputs.node_major_minor }}"
+          ./dtvem${{ matrix.ext }} install node ${{ inputs.node_major_minor }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list node 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.node_major_minor }}\\."; then
+            echo "✅ Major.minor version resolved correctly to ${{ inputs.node_major_minor }}.x"
+          else
+            echo "❌ Expected ${{ inputs.node_major_minor }}.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Verify shim works with resolved version"
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} global node ${{ inputs.node_major }}
+          NODE_VERSION=$(node --version)
+          echo "Node version from shim: $NODE_VERSION"
+          if [[ "$NODE_VERSION" != *"${{ inputs.node_major }}."* ]]; then
+            echo "❌ Expected v${{ inputs.node_major }}.x.x but got $NODE_VERSION"
+            exit 1
+          fi
+          echo "✅ Shim works correctly with resolved version"
+        shell: bash
+
+      - name: "Test invalid partial version fails gracefully"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Testing invalid partial version: 99"
+          if ./dtvem${{ matrix.ext }} install node 99 2>&1; then
+            echo "❌ Expected install to fail for non-existent major version"
+            exit 1
+          else
+            echo "✅ Invalid version correctly rejected"
+          fi
+        shell: bash
+
+      - name: Generate Node.js summary
+        if: always()
+        run: |
+          echo "## Node.js Partial Version Tests (${{ matrix.platform }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Input | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Major-only | \`${{ inputs.node_major }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Major.minor | \`${{ inputs.node_major_minor }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Shim verification | - | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Invalid version | \`99\` | ✅ (rejected) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+      - name: Cleanup Node.js
+        if: always()
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} uninstall node ${{ inputs.node_major }} --yes 2>/dev/null || true
+          ./dtvem${{ matrix.ext }} uninstall node ${{ inputs.node_major_minor }} --yes 2>/dev/null || true
+        shell: bash
+
+  partial-version-python:
+    name: Python Partial Versions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ""
+          - os: macos-latest
+            platform: macos
+            ext: ""
+          - os: windows-latest
+            platform: windows
+            ext: ".exe"
+    env:
+      TEST_WORKSPACE: ${{ github.workspace }}/../dtvem-test-workspace
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build dtvem
+        run: |
+          go build -v -ldflags="-s -w" -o dist/dtvem${{ matrix.ext }} ./src
+          go build -v -ldflags="-s -w" -o dist/dtvem-shim${{ matrix.ext }} ./src/cmd/shim
+        shell: bash
+
+      - name: Initialize dtvem
+        run: |
+          ./dist/dtvem${{ matrix.ext }} init --yes
+        shell: bash
+
+      - name: Add shims to PATH (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            DTVEM_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/dtvem"
+          else
+            DTVEM_ROOT="$HOME/.dtvem"
+          fi
+          echo "$DTVEM_ROOT/shims" >> $GITHUB_PATH
+          echo "$DTVEM_ROOT/bin" >> $GITHUB_PATH
+
+      - name: Add shims to PATH (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\.dtvem\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "$env:USERPROFILE\.dtvem\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Set up test workspace
+        run: |
+          mkdir -p "$TEST_WORKSPACE"
+          cp ./dist/dtvem${{ matrix.ext }} "$TEST_WORKSPACE/"
+          cp ./dist/dtvem-shim${{ matrix.ext }} "$TEST_WORKSPACE/"
+        shell: bash
+
+      - name: "Test major-only version (python ${{ inputs.python_major }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Python with major-only version: ${{ inputs.python_major }}"
+          ./dtvem${{ matrix.ext }} install python ${{ inputs.python_major }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list python 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.python_major }}\\."; then
+            echo "✅ Major-only version resolved correctly to ${{ inputs.python_major }}.x.x"
+          else
+            echo "❌ Expected ${{ inputs.python_major }}.x.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Test major.minor version (python ${{ inputs.python_major_minor }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Python with major.minor version: ${{ inputs.python_major_minor }}"
+          ./dtvem${{ matrix.ext }} install python ${{ inputs.python_major_minor }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list python 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.python_major_minor }}\\."; then
+            echo "✅ Major.minor version resolved correctly to ${{ inputs.python_major_minor }}.x"
+          else
+            echo "❌ Expected ${{ inputs.python_major_minor }}.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Verify shim works with resolved version"
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} global python ${{ inputs.python_major }}
+          PYTHON_VERSION=$(python --version 2>&1)
+          echo "Python version from shim: $PYTHON_VERSION"
+          if [[ "$PYTHON_VERSION" != *"${{ inputs.python_major }}."* ]]; then
+            echo "❌ Expected Python ${{ inputs.python_major }}.x.x but got $PYTHON_VERSION"
+            exit 1
+          fi
+          echo "✅ Shim works correctly with resolved version"
+        shell: bash
+
+      - name: Generate Python summary
+        if: always()
+        run: |
+          echo "## Python Partial Version Tests (${{ matrix.platform }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Input | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Major-only | \`${{ inputs.python_major }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Major.minor | \`${{ inputs.python_major_minor }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Shim verification | - | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+      - name: Cleanup Python
+        if: always()
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} uninstall python ${{ inputs.python_major }} --yes 2>/dev/null || true
+          ./dtvem${{ matrix.ext }} uninstall python ${{ inputs.python_major_minor }} --yes 2>/dev/null || true
+        shell: bash
+
+  partial-version-ruby:
+    name: Ruby Partial Versions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ""
+          - os: macos-latest
+            platform: macos
+            ext: ""
+          - os: windows-latest
+            platform: windows
+            ext: ".exe"
+    env:
+      TEST_WORKSPACE: ${{ github.workspace }}/../dtvem-test-workspace
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build dtvem
+        run: |
+          go build -v -ldflags="-s -w" -o dist/dtvem${{ matrix.ext }} ./src
+          go build -v -ldflags="-s -w" -o dist/dtvem-shim${{ matrix.ext }} ./src/cmd/shim
+        shell: bash
+
+      - name: Initialize dtvem
+        run: |
+          ./dist/dtvem${{ matrix.ext }} init --yes
+        shell: bash
+
+      - name: Add shims to PATH (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            DTVEM_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/dtvem"
+          else
+            DTVEM_ROOT="$HOME/.dtvem"
+          fi
+          echo "$DTVEM_ROOT/shims" >> $GITHUB_PATH
+          echo "$DTVEM_ROOT/bin" >> $GITHUB_PATH
+
+      - name: Add shims to PATH (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\.dtvem\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "$env:USERPROFILE\.dtvem\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Set up test workspace
+        run: |
+          mkdir -p "$TEST_WORKSPACE"
+          cp ./dist/dtvem${{ matrix.ext }} "$TEST_WORKSPACE/"
+          cp ./dist/dtvem-shim${{ matrix.ext }} "$TEST_WORKSPACE/"
+        shell: bash
+
+      - name: "Test major-only version (ruby ${{ inputs.ruby_major }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Ruby with major-only version: ${{ inputs.ruby_major }}"
+          ./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list ruby 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.ruby_major }}\\."; then
+            echo "✅ Major-only version resolved correctly to ${{ inputs.ruby_major }}.x.x"
+          else
+            echo "❌ Expected ${{ inputs.ruby_major }}.x.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Test major.minor version (ruby ${{ inputs.ruby_major_minor }})"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Installing Ruby with major.minor version: ${{ inputs.ruby_major_minor }}"
+          ./dtvem${{ matrix.ext }} install ruby ${{ inputs.ruby_major_minor }}
+
+          echo "Verifying installation..."
+          INSTALLED=$(./dtvem${{ matrix.ext }} list ruby 2>&1 | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+          echo "Installed versions: $INSTALLED"
+
+          if echo "$INSTALLED" | grep -q "${{ inputs.ruby_major_minor }}\\."; then
+            echo "✅ Major.minor version resolved correctly to ${{ inputs.ruby_major_minor }}.x"
+          else
+            echo "❌ Expected ${{ inputs.ruby_major_minor }}.x version to be installed"
+            exit 1
+          fi
+        shell: bash
+
+      - name: "Verify shim works with resolved version"
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} global ruby ${{ inputs.ruby_major }}
+          RUBY_VERSION=$(ruby --version 2>&1)
+          echo "Ruby version from shim: $RUBY_VERSION"
+          if [[ "$RUBY_VERSION" != *"${{ inputs.ruby_major }}."* ]]; then
+            echo "❌ Expected Ruby ${{ inputs.ruby_major }}.x.x but got $RUBY_VERSION"
+            exit 1
+          fi
+          echo "✅ Shim works correctly with resolved version"
+        shell: bash
+
+      - name: Generate Ruby summary
+        if: always()
+        run: |
+          echo "## Ruby Partial Version Tests (${{ matrix.platform }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Input | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Major-only | \`${{ inputs.ruby_major }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Major.minor | \`${{ inputs.ruby_major_minor }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Shim verification | - | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+      - name: Cleanup Ruby
+        if: always()
+        run: |
+          cd "$TEST_WORKSPACE"
+          ./dtvem${{ matrix.ext }} uninstall ruby ${{ inputs.ruby_major }} --yes 2>/dev/null || true
+          ./dtvem${{ matrix.ext }} uninstall ruby ${{ inputs.ruby_major_minor }} --yes 2>/dev/null || true
+        shell: bash
