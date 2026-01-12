@@ -4,6 +4,7 @@ Select a random blog post from an RSS feed, excluding recent posts.
 Outputs JSON object of the selected post.
 """
 
+import argparse
 import sys
 import json
 import random
@@ -69,18 +70,34 @@ def parse_rss(rss_file: str, exclude_days: int = 30) -> list[dict]:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <rss_file> [exclude_days]", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Select a random blog post from an RSS feed')
+    parser.add_argument('rss_file', help='Path to the RSS file')
+    parser.add_argument('exclude_days', nargs='?', type=int, default=30,
+                        help='Exclude posts newer than this many days (default: 30)')
+    parser.add_argument('--exclude-urls', type=str, default='',
+                        help='JSON array of URLs to exclude from selection')
 
-    rss_file = sys.argv[1]
-    exclude_days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+    args = parser.parse_args()
 
-    posts = parse_rss(rss_file, exclude_days)
+    posts = parse_rss(args.rss_file, args.exclude_days)
 
     if not posts:
         print(json.dumps({}))
         sys.exit(0)
+
+    # Filter out previously selected URLs if provided
+    exclude_urls = set()
+    if args.exclude_urls:
+        try:
+            exclude_urls = set(json.loads(args.exclude_urls))
+        except json.JSONDecodeError:
+            print(f"Warning: Could not parse exclude-urls JSON", file=sys.stderr)
+
+    if exclude_urls:
+        filtered_posts = [p for p in posts if p['url'] not in exclude_urls]
+        # If all posts are excluded, reset and use full list
+        if filtered_posts:
+            posts = filtered_posts
 
     selected = random.choice(posts)
     print(json.dumps(selected))
