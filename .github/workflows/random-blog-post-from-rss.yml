@@ -12,6 +12,20 @@ on:
         required: false
         type: number
         default: 30
+      history_variable_name:
+        description: 'Repository variable name for tracking selection history (optional)'
+        required: false
+        type: string
+        default: ''
+      history_max_entries:
+        description: 'Maximum entries to keep in history (default: 104 = 2 years)'
+        required: false
+        type: number
+        default: 104
+    secrets:
+      HISTORY_TOKEN:
+        description: 'Token with variables:write permission for history tracking'
+        required: false
     outputs:
       has_post:
         description: 'Whether a post was found'
@@ -54,11 +68,32 @@ jobs:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
 
+      - name: Read history variable
+        id: history
+        if: inputs.history_variable_name != ''
+        env:
+          GH_TOKEN: ${{ secrets.HISTORY_TOKEN }}
+        run: |
+          HISTORY_VAR="${{ inputs.history_variable_name }}"
+          echo "Reading history from variable: $HISTORY_VAR"
+
+          # Get the variable value (returns empty if not found)
+          HISTORY_JSON=$(gh api "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" --jq '.value' 2>/dev/null || echo '[]')
+
+          # Validate it's a JSON array, default to empty array if not
+          if ! echo "$HISTORY_JSON" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
+            HISTORY_JSON='[]'
+          fi
+
+          echo "History contains $(echo "$HISTORY_JSON" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0) entries"
+          echo "exclude_urls=$HISTORY_JSON" >> $GITHUB_OUTPUT
+
       - name: Select random post
         id: pick
         run: |
           RSS_URL="${{ inputs.rss_url }}"
           EXCLUDE_DAYS="${{ inputs.exclude_days }}"
+          EXCLUDE_URLS='${{ steps.history.outputs.exclude_urls }}'
 
           echo "Fetching RSS from: $RSS_URL"
           RSS_FILE=$(mktemp)
@@ -71,7 +106,13 @@ jobs:
             exit 0
           fi
 
-          POST_JSON=$(python3 .github/scripts/random-rss-post.py "$RSS_FILE" "$EXCLUDE_DAYS")
+          # Build command with optional exclude-urls
+          CMD="python3 .github/scripts/random-rss-post.py \"$RSS_FILE\" \"$EXCLUDE_DAYS\""
+          if [ -n "$EXCLUDE_URLS" ] && [ "$EXCLUDE_URLS" != "[]" ]; then
+            CMD="$CMD --exclude-urls '$EXCLUDE_URLS'"
+          fi
+
+          POST_JSON=$(eval $CMD)
 
           rm -f "$RSS_FILE"
 
@@ -102,3 +143,51 @@ jobs:
           echo "post_hashtags=$POST_HASHTAGS" >> $GITHUB_OUTPUT
           echo "post_image_url=$POST_IMAGE_URL" >> $GITHUB_OUTPUT
           echo "post_date=$POST_DATE" >> $GITHUB_OUTPUT
+
+      - name: Update history variable
+        if: inputs.history_variable_name != '' && steps.pick.outputs.has_post == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.HISTORY_TOKEN }}
+        run: |
+          HISTORY_VAR="${{ inputs.history_variable_name }}"
+          MAX_ENTRIES="${{ inputs.history_max_entries }}"
+          NEW_URL="${{ steps.pick.outputs.post_url }}"
+          CURRENT_HISTORY='${{ steps.history.outputs.exclude_urls }}'
+
+          # Default to empty array if no history
+          if [ -z "$CURRENT_HISTORY" ]; then
+            CURRENT_HISTORY='[]'
+          fi
+
+          # Add new URL and trim to max entries
+          UPDATED_HISTORY=$(python3 -c "
+          import json
+          history = json.loads('$CURRENT_HISTORY')
+          new_url = '$NEW_URL'
+          max_entries = int('$MAX_ENTRIES')
+
+          # Add new URL to the front
+          if new_url and new_url not in history:
+              history.insert(0, new_url)
+
+          # Trim to max entries
+          history = history[:max_entries]
+
+          print(json.dumps(history))
+          ")
+
+          echo "Updating history variable with $(echo "$UPDATED_HISTORY" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0) entries"
+
+          # Check if variable exists
+          if gh api "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" --silent 2>/dev/null; then
+            # Update existing variable
+            gh api --method PATCH "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" \
+              -f value="$UPDATED_HISTORY"
+          else
+            # Create new variable
+            gh api --method POST "repos/${{ github.repository }}/actions/variables" \
+              -f name="$HISTORY_VAR" \
+              -f value="$UPDATED_HISTORY"
+          fi
+
+          echo "History updated successfully"
