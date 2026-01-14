@@ -103,7 +103,6 @@ jobs:
         [Check out the release notes here!](https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.version }})
 
         #dotnet #vsix ${{ inputs.hashtags }}
-      embed_url: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
       embed_title: ${{ inputs.display-name }} for Visual Studio
       embed_description: ${{ inputs.description }}
     secrets:
@@ -120,7 +119,6 @@ jobs:
         Check out the release notes: https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.version }}
 
         #dotnet #vsix ${{ inputs.hashtags }}
-      article_url: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
       article_title: ${{ inputs.display-name }} for Visual Studio
       article_description: ${{ inputs.description }}
     secrets:

@@ -101,7 +101,6 @@ jobs:
         [📦 GitHub Marketplace](https://github.com/marketplace/actions/${{ inputs.action-slug }})
 
         #github #githubactions #devops #automation
-      embed_url: https://github.com/marketplace/actions/${{ inputs.action-slug }}
       embed_title: ${{ inputs.action-name }}
       embed_description: ${{ inputs.action-description }}
     secrets:
@@ -121,7 +120,6 @@ jobs:
         📦 GitHub Marketplace: https://github.com/marketplace/actions/${{ inputs.action-slug }}
 
         #github #githubactions #devops #automation
-      article_url: https://github.com/marketplace/actions/${{ inputs.action-slug }}
       article_title: ${{ inputs.action-name }}
       article_description: ${{ inputs.action-description }}
     secrets:
