@@ -8,9 +8,10 @@ on:
         required: true
         type: string
       article_url:
-        description: 'Optional URL to share as an article'
+        description: 'URL to share as an article (defaults to GitHub repo)'
         required: false
         type: string
+        default: ''
       article_title:
         description: 'Title for the article (used with article_url)'
         required: false
@@ -34,7 +35,7 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
           POST_TEXT: ${{ inputs.post_text }}
-          ARTICLE_URL: ${{ inputs.article_url }}
+          ARTICLE_URL: ${{ inputs.article_url || format('https://github.com/{0}', github.repository) }}
           ARTICLE_TITLE: ${{ inputs.article_title }}
           ARTICLE_DESC: ${{ inputs.article_description }}
         run: |

@@ -8,9 +8,10 @@ on:
         required: true
         type: string
       embed_url:
-        description: 'Optional URL to create a website card embed from'
+        description: 'URL to create a website card embed from (defaults to GitHub repo)'
         required: false
         type: string
+        default: ''
       embed_title:
         description: 'Optional title for the embed card (avoids fetching from OG tags)'
         required: false
@@ -47,7 +48,7 @@ jobs:
         id: create-post
         env:
           POST_INPUT: ${{ toJSON(inputs.post_text) }}
-          EMBED_URL: ${{ inputs.embed_url }}
+          EMBED_URL: ${{ inputs.embed_url || format('https://github.com/{0}', github.repository) }}
           EMBED_TITLE: ${{ inputs.embed_title }}
           EMBED_DESCRIPTION: ${{ inputs.embed_description }}
           EMBED_IMAGE_URL: ${{ inputs.embed_image_url }}
