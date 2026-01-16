@@ -34,12 +34,6 @@ on:
       BLUESKY_APP_PASSWORD:
         description: 'BlueSky app password'
         required: true
-      LINKEDIN_ACCESS_TOKEN:
-        description: 'LinkedIn access token'
-        required: true
-      LINKEDIN_CLIENT_ID:
-        description: 'LinkedIn client ID'
-        required: true
 
 env:
   INFO_FILE: CodingWithCalvin.${{ inputs.extension-name }}.info
@@ -109,18 +103,3 @@ jobs:
       BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
       BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
 
-  notify-linkedin:
-    needs: publish
-    uses: CodingWithCalvin/.github/.github/workflows/linkedin-post.yml@main
-    with:
-      post_text: |
-        🚀 ${{ inputs.display-name }} v${{ needs.publish.outputs.version }} for #VisualStudio has been released!
-
-        Check out the release notes: https://github.com/${{ github.repository }}/releases/tag/${{ needs.publish.outputs.version }}
-
-        #dotnet #vsix ${{ inputs.hashtags }}
-      article_title: ${{ inputs.display-name }} for Visual Studio
-      article_description: ${{ inputs.description }}
-    secrets:
-      LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-      LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
