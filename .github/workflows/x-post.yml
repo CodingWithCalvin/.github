@@ -167,7 +167,7 @@ jobs:
                   print(f"Warning: Failed to upload image: {e}", file=__import__('sys').stderr)
 
           # Create tweet using v2 API
-          tweet_url = 'https://api.twitter.com/2/tweets'
+          tweet_url = 'https://api.x.com/2/tweets'
 
           # For v2 JSON body requests, only oauth params go in signature
           auth_header = create_oauth_header(
