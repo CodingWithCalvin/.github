@@ -1,0 +1,21 @@
+name: Test X Post
+
+on:
+  workflow_dispatch:
+    inputs:
+      post_text:
+        description: 'Text to post'
+        required: true
+        type: string
+        default: 'Testing X posting from GitHub Actions! This is a test post and can be deleted.'
+
+jobs:
+  test-post:
+    uses: CodingWithCalvin/.github/.github/workflows/x-post.yml@main
+    with:
+      post_text: ${{ inputs.post_text }}
+    secrets:
+      X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+      X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
+      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+      X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
