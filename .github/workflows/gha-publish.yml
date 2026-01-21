@@ -31,6 +31,18 @@ on:
       BLUESKY_APP_PASSWORD:
         description: 'Bluesky app password'
         required: true
+      X_CONSUMER_KEY:
+        description: 'X API consumer key'
+        required: true
+      X_CONSUMER_KEY_SECRET:
+        description: 'X API consumer key secret'
+        required: true
+      X_ACCESS_TOKEN:
+        description: 'X API access token'
+        required: true
+      X_ACCESS_TOKEN_SECRET:
+        description: 'X API access token secret'
+        required: true
 
 jobs:
   changelog:
@@ -100,4 +112,23 @@ jobs:
     secrets:
       BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
       BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+
+  notify-x:
+    needs: release
+    uses: CodingWithCalvin/.github/.github/workflows/x-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.action-name }} v${{ needs.release.outputs.version }} has been released!
+
+        ${{ inputs.action-description }}
+
+        Release Notes: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.release.outputs.version }}
+        GitHub Marketplace: https://github.com/marketplace/actions/${{ inputs.action-slug }}
+
+        #github #githubactions #devops #automation
+    secrets:
+      X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+      X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
+      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+      X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
 
