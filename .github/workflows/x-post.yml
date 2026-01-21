@@ -1,0 +1,212 @@
+name: Post to X
+
+on:
+  workflow_call:
+    inputs:
+      post_text:
+        description: 'The text content of the post. URLs and hashtags are automatically detected.'
+        required: true
+        type: string
+      embed_url:
+        description: 'URL to create a website card embed from (defaults to GitHub repo). Will be appended to post if not already present.'
+        required: false
+        type: string
+        default: ''
+      embed_image_url:
+        description: 'Optional image URL to attach to the post'
+        required: false
+        type: string
+    outputs:
+      post_id:
+        description: 'The X/Twitter post ID'
+        value: ${{ jobs.post.outputs.post_id }}
+      post_uri:
+        description: 'The full URL to the post'
+        value: ${{ jobs.post.outputs.post_uri }}
+    secrets:
+      X_CONSUMER_KEY:
+        required: true
+      X_CONSUMER_KEY_SECRET:
+        required: true
+      X_ACCESS_TOKEN:
+        required: true
+      X_ACCESS_TOKEN_SECRET:
+        required: true
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    outputs:
+      post_id: ${{ steps.create-post.outputs.post_id }}
+      post_uri: ${{ steps.create-post.outputs.post_uri }}
+    steps:
+      - name: Post to X
+        id: create-post
+        env:
+          POST_TEXT: ${{ inputs.post_text }}
+          EMBED_URL: ${{ inputs.embed_url || format('https://github.com/{0}', github.repository) }}
+          EMBED_IMAGE_URL: ${{ inputs.embed_image_url }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: |
+          echo "Creating X/Twitter post..."
+
+          # Use Python for OAuth 1.0a signing and API calls
+          RESPONSE=$(python3 << 'PYEOF'
+          import os
+          import json
+          import time
+          import hmac
+          import hashlib
+          import base64
+          import urllib.parse
+          import urllib.request
+          import secrets as py_secrets
+
+          api_key = os.environ['X_CONSUMER_KEY']
+          api_key_secret = os.environ['X_CONSUMER_KEY_SECRET']
+          access_token = os.environ['X_ACCESS_TOKEN']
+          access_token_secret = os.environ['X_ACCESS_TOKEN_SECRET']
+          post_text = os.environ['POST_TEXT']
+          embed_url = os.environ.get('EMBED_URL', '')
+          embed_image_url = os.environ.get('EMBED_IMAGE_URL', '')
+
+          def create_oauth_signature(method, url, params, api_key_secret, access_token_secret):
+              """Create OAuth 1.0a signature"""
+              sorted_params = sorted(params.items())
+              param_string = '&'.join(
+                  f'{urllib.parse.quote(str(k), safe="")}={urllib.parse.quote(str(v), safe="")}'
+                  for k, v in sorted_params
+              )
+
+              base_string = '&'.join([
+                  method,
+                  urllib.parse.quote(url, safe=''),
+                  urllib.parse.quote(param_string, safe='')
+              ])
+
+              signing_key = f'{urllib.parse.quote(api_key_secret, safe="")}&{urllib.parse.quote(access_token_secret, safe="")}'
+
+              signature = base64.b64encode(
+                  hmac.new(signing_key.encode(), base_string.encode(), hashlib.sha1).digest()
+              ).decode()
+
+              return signature
+
+          def create_oauth_header(method, url, api_key, api_key_secret, access_token, access_token_secret, extra_params=None):
+              """Create OAuth 1.0a Authorization header"""
+              oauth_params = {
+                  'oauth_consumer_key': api_key,
+                  'oauth_nonce': py_secrets.token_hex(16),
+                  'oauth_signature_method': 'HMAC-SHA1',
+                  'oauth_timestamp': str(int(time.time())),
+                  'oauth_token': access_token,
+                  'oauth_version': '1.0'
+              }
+
+              # Combine oauth params with any extra params for signature
+              all_params = {**oauth_params}
+              if extra_params:
+                  all_params.update(extra_params)
+
+              signature = create_oauth_signature(method, url, all_params, api_key_secret, access_token_secret)
+              oauth_params['oauth_signature'] = signature
+
+              auth_header = 'OAuth ' + ', '.join(
+                  f'{urllib.parse.quote(k, safe="")}="{urllib.parse.quote(v, safe="")}"'
+                  for k, v in sorted(oauth_params.items())
+              )
+
+              return auth_header
+
+          # Append embed_url to post text if not already present (X auto-generates cards from URLs)
+          final_text = post_text
+          if embed_url and embed_url not in post_text:
+              final_text = f"{post_text}\n\n{embed_url}"
+
+          media_id = None
+
+          # Upload image if provided
+          if embed_image_url:
+              print(f"Downloading image from: {embed_image_url}", file=__import__('sys').stderr)
+
+              try:
+                  req = urllib.request.Request(embed_image_url, headers={'User-Agent': 'Mozilla/5.0'})
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      image_data = response.read()
+
+                  # Upload to X media endpoint (v1.1)
+                  upload_url = 'https://upload.twitter.com/1.1/media/upload.json'
+
+                  # Base64 encode the image
+                  media_data = base64.b64encode(image_data).decode()
+
+                  # For media upload, params go in the body as form data
+                  body_params = {'media_data': media_data}
+
+                  auth_header = create_oauth_header(
+                      'POST', upload_url,
+                      api_key, api_key_secret, access_token, access_token_secret
+                  )
+
+                  form_data = urllib.parse.urlencode(body_params).encode()
+
+                  req = urllib.request.Request(upload_url, data=form_data, method='POST')
+                  req.add_header('Authorization', auth_header)
+                  req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+
+                  with urllib.request.urlopen(req) as response:
+                      upload_result = json.loads(response.read().decode())
+                      media_id = upload_result.get('media_id_string')
+                      print(f"Image uploaded, media_id: {media_id}", file=__import__('sys').stderr)
+
+              except Exception as e:
+                  print(f"Warning: Failed to upload image: {e}", file=__import__('sys').stderr)
+
+          # Create tweet using v2 API
+          tweet_url = 'https://api.twitter.com/2/tweets'
+
+          # For v2 JSON body requests, only oauth params go in signature
+          auth_header = create_oauth_header(
+              'POST', tweet_url,
+              api_key, api_key_secret, access_token, access_token_secret
+          )
+
+          # Build tweet payload
+          payload = {'text': final_text}
+          if media_id:
+              payload['media'] = {'media_ids': [media_id]}
+
+          req = urllib.request.Request(tweet_url, data=json.dumps(payload).encode(), method='POST')
+          req.add_header('Authorization', auth_header)
+          req.add_header('Content-Type', 'application/json')
+
+          try:
+              with urllib.request.urlopen(req) as response:
+                  result = json.loads(response.read().decode())
+                  print(json.dumps({'success': True, 'data': result}))
+          except urllib.error.HTTPError as e:
+              error_body = e.read().decode()
+              print(json.dumps({'success': False, 'error': error_body, 'status': e.code}))
+          PYEOF
+          )
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+
+          if [ "$SUCCESS" != "true" ]; then
+            echo "Error: Failed to create X post"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          POST_ID=$(echo "$RESPONSE" | jq -r '.data.data.id')
+          POST_URI="https://x.com/i/web/status/$POST_ID"
+
+          echo "✓ Posted to X: $POST_URI"
+
+          # Output post ID and URI for downstream jobs
+          echo "post_id=$POST_ID" >> $GITHUB_OUTPUT
+          echo "post_uri=$POST_URI" >> $GITHUB_OUTPUT
+        shell: bash
