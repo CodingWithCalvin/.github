@@ -39,7 +39,8 @@ jobs:
           - os: windows-latest
             platform: windows
             ext: ".exe"
-            version1: "3.11.9"
+            # Use 3.14.2 to test the pip fix (issue #201 - pip failed on this version)
+            version1: "3.14.2"
             version2: "3.12.5"
     env:
       # Run tests from a directory outside the repo to avoid picking up .dtvem/runtimes.json
@@ -175,6 +176,34 @@ jobs:
           fi
         shell: bash
 
+      - name: "Verify pip shim works (pip --version)"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Testing pip via shim..."
+          PIP_VERSION=$(pip --version)
+          echo "pip version from shim: $PIP_VERSION"
+          # Verify pip reports the correct Python version
+          if [[ "$PIP_VERSION" != *"${{ matrix.version1 }}"* ]]; then
+            echo "ERROR: pip reports wrong Python version. Expected ${{ matrix.version1 }} in output"
+            echo "Got: $PIP_VERSION"
+            exit 1
+          fi
+          echo "✓ pip shim works correctly"
+        shell: bash
+
+      - name: "Verify pip module works (python -m pip)"
+        run: |
+          cd "$TEST_WORKSPACE"
+          echo "Testing pip via module..."
+          PIP_MODULE_VERSION=$(python -m pip --version)
+          echo "pip module version: $PIP_MODULE_VERSION"
+          if [[ "$PIP_MODULE_VERSION" != *"${{ matrix.version1 }}"* ]]; then
+            echo "ERROR: pip module reports wrong Python version"
+            exit 1
+          fi
+          echo "✓ pip module works correctly"
+        shell: bash
+
       - name: "Switch global version to ${{ matrix.version2 }}"
         run: |
           cd "$TEST_WORKSPACE"
@@ -289,6 +318,8 @@ jobs:
           echo "| global | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| current | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| shim execution | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| pip shim | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| pip module | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| local override | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| which | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| where | ✅ |" >> $GITHUB_STEP_SUMMARY
