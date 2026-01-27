@@ -36,19 +36,9 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.cli?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
-<td>📖 <a href="https://github.com/CodingWithCalvin/dtvem.io">dtvem.io</a></td>
-<td>Documentation website for dtvem</td>
-<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.io?style=for-the-badge&logo=github" alt="Stars"></td>
-</tr>
-<tr>
 <td>🏃 <a href="https://github.com/CodingWithCalvin/rnr.cli">rnr</a></td>
 <td>Cross-platform task runner with zero-setup execution</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/rnr.cli?style=for-the-badge&logo=github" alt="Stars"></td>
-</tr>
-<tr>
-<td>📖 <a href="https://github.com/CodingWithCalvin/rnrcli.io">rnrcli.io</a></td>
-<td>Documentation website for rnr</td>
-<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/rnrcli.io?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
 <td>🖥️ <a href="https://github.com/CodingWithCalvin/VSToolbox">VSToolbox</a></td>
@@ -151,6 +141,19 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td>🔢 <a href="https://github.com/CodingWithCalvin/GHA-VSVsixVersioner">GHA-VSVsixVersioner</a></td>
 <td>Version Visual Studio extensions (VSIX)</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-VSVsixVersioner?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td colspan="3"><strong>📖 Documentation Sites</strong></td>
+</tr>
+<tr>
+<td>📖 <a href="https://github.com/CodingWithCalvin/dtvem.io">dtvem.io</a></td>
+<td>Documentation website for dtvem</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.io?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>📖 <a href="https://github.com/CodingWithCalvin/rnrcli.io">rnrcli.io</a></td>
+<td>Documentation website for rnr</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/rnrcli.io?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 </table>
 

@@ -1,0 +1,194 @@
+{
+  "categories": [
+    {
+      "name": "Developer Tools",
+      "emoji": "🧰",
+      "projects": [
+        {
+          "repo": "dtvem.cli",
+          "name": "dtvem",
+          "description": "Cross-platform runtime version manager (Node, Python, Ruby)",
+          "emoji": "⚡",
+          "topics": ["DevTools", "VersionManager", "NodeJS", "Python", "Ruby", "CrossPlatform"]
+        },
+        {
+          "repo": "rnr.cli",
+          "name": "rnr",
+          "description": "Cross-platform task runner with zero-setup execution",
+          "emoji": "🏃",
+          "topics": ["DevTools", "TaskRunner", "CrossPlatform", "CLI"]
+        },
+        {
+          "repo": "VSToolbox",
+          "name": "VSToolbox",
+          "description": "System tray app for managing multiple VS installations",
+          "emoji": "🖥️",
+          "topics": ["VisualStudio", "DevTools", "Windows", "WPF"]
+        },
+        {
+          "repo": "VSCWhere",
+          "name": "VSCWhere",
+          "description": "Locate VS Code installations on Windows (vswhere for VS Code)",
+          "emoji": "🔍",
+          "topics": ["VSCode", "DevTools", "Windows", "CLI"]
+        }
+      ]
+    },
+    {
+      "name": "SDKs & Libraries",
+      "emoji": "📦",
+      "projects": [
+        {
+          "repo": "VsixSdk",
+          "name": "VsixSdk",
+          "description": "Modern MSBuild SDK for VSIX development",
+          "emoji": "📦",
+          "topics": ["VisualStudio", "VSIX", "MSBuild", "SDK", "DotNet"]
+        },
+        {
+          "repo": "Otel4Vsix",
+          "name": "Otel4Vsix",
+          "description": "OpenTelemetry support for VS extensions",
+          "emoji": "📊",
+          "topics": ["VisualStudio", "VSIX", "OpenTelemetry", "Observability", "DotNet"]
+        }
+      ]
+    },
+    {
+      "name": "Visual Studio Extensions",
+      "emoji": "🔌",
+      "projects": [
+        {
+          "repo": "VS-VsixManifestDesigner",
+          "name": "VS-VsixManifestDesigner",
+          "description": "Modern visual designer for VSIX manifest files",
+          "emoji": "📋",
+          "topics": ["VisualStudio", "VSIX", "Extension", "Designer"]
+        },
+        {
+          "repo": "VS-ProjectRenamifier",
+          "name": "VS-ProjectRenamifier",
+          "description": "Safe, comprehensive project renaming",
+          "emoji": "🔄",
+          "topics": ["VisualStudio", "Extension", "Refactoring", "Productivity"]
+        },
+        {
+          "repo": "VS-GitRanger",
+          "name": "VS-GitRanger",
+          "description": "Git management with theme-adaptive visuals",
+          "emoji": "🌿",
+          "topics": ["VisualStudio", "Extension", "Git", "SourceControl"]
+        },
+        {
+          "repo": "VS-CouchbaseExplorer",
+          "name": "VS-CouchbaseExplorer",
+          "description": "Couchbase & Capella data management in VS",
+          "emoji": "🗄️",
+          "topics": ["VisualStudio", "Extension", "Couchbase", "Database", "NoSQL"]
+        },
+        {
+          "repo": "VS-SuperClean",
+          "name": "VS-SuperClean",
+          "description": "Recursively clean bin/obj folders",
+          "emoji": "🧹",
+          "topics": ["VisualStudio", "Extension", "Productivity", "Cleanup"]
+        },
+        {
+          "repo": "VS-OpenInNotepadPlusPlus",
+          "name": "VS-OpenInNotepadPlusPlus",
+          "description": "Open files in Notepad++ from VS",
+          "emoji": "📝",
+          "topics": ["VisualStudio", "Extension", "NotepadPlusPlus", "Productivity"]
+        },
+        {
+          "repo": "VS-BreakpointNotifier",
+          "name": "VS-BreakpointNotifier",
+          "description": "Get alerted when breakpoints hit",
+          "emoji": "🔔",
+          "topics": ["VisualStudio", "Extension", "Debugging", "Productivity"]
+        },
+        {
+          "repo": "VS-OpenBinFolder",
+          "name": "VS-OpenBinFolder",
+          "description": "Quick access to output directory",
+          "emoji": "📂",
+          "topics": ["VisualStudio", "Extension", "Productivity"]
+        },
+        {
+          "repo": "VS-Debugalizers",
+          "name": "VS-Debugalizers",
+          "description": "Debug visualizers with syntax highlighting for common data types",
+          "emoji": "🔬",
+          "topics": ["VisualStudio", "Extension", "Debugging", "Visualizer"]
+        },
+        {
+          "repo": "VS-MCPServer",
+          "name": "VS-MCPServer",
+          "description": "Model Context Protocol server for AI assistant integration",
+          "emoji": "🤖",
+          "topics": ["VisualStudio", "Extension", "MCP", "AI", "Claude"]
+        }
+      ]
+    },
+    {
+      "name": "VS Code Extensions",
+      "emoji": "🔵",
+      "projects": [
+        {
+          "repo": "VSC-MCPServer",
+          "name": "VSC-MCPServer",
+          "description": "Model Context Protocol server for AI assistant integration",
+          "emoji": "🤖",
+          "topics": ["VSCode", "Extension", "MCP", "AI", "Claude"]
+        }
+      ]
+    },
+    {
+      "name": "GitHub Actions",
+      "emoji": "⚙️",
+      "projects": [
+        {
+          "repo": "GHA-VSMarketplacePublisher",
+          "name": "GHA-VSMarketplacePublisher",
+          "description": "Publish extensions to the VS Marketplace",
+          "emoji": "🚀",
+          "topics": ["GitHubActions", "CICD", "VisualStudio", "Marketplace"]
+        },
+        {
+          "repo": "GHA-JBMarketplacePublisher",
+          "name": "GHA-JBMarketplacePublisher",
+          "description": "Publish plugins to the JetBrains Marketplace",
+          "emoji": "🚀",
+          "topics": ["GitHubActions", "CICD", "JetBrains", "Marketplace"]
+        },
+        {
+          "repo": "GHA-VSVsixVersioner",
+          "name": "GHA-VSVsixVersioner",
+          "description": "Version Visual Studio extensions (VSIX)",
+          "emoji": "🔢",
+          "topics": ["GitHubActions", "CICD", "VisualStudio", "VSIX", "Versioning"]
+        }
+      ]
+    },
+    {
+      "name": "Documentation Sites",
+      "emoji": "📖",
+      "projects": [
+        {
+          "repo": "dtvem.io",
+          "name": "dtvem.io",
+          "description": "Documentation website for dtvem",
+          "emoji": "📖",
+          "topics": ["Documentation", "dtvem"]
+        },
+        {
+          "repo": "rnrcli.io",
+          "name": "rnrcli.io",
+          "description": "Documentation website for rnr",
+          "emoji": "📖",
+          "topics": ["Documentation", "rnr"]
+        }
+      ]
+    }
+  ]
+}
