@@ -31,7 +31,7 @@ jobs:
       - name: Read history variable
         id: history
         env:
-          GH_TOKEN: ${{ secrets.VARIABLE_UPDATE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
         run: |
           HISTORY_VAR="TOOL_REMINDER_HISTORY"
           echo "Reading history from variable: $HISTORY_VAR"
@@ -154,7 +154,7 @@ jobs:
       - name: Update history variable
         if: steps.pick.outputs.has_project == 'true' && inputs.dry_run != true
         env:
-          GH_TOKEN: ${{ secrets.VARIABLE_UPDATE_TOKEN }}
+          GH_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
         run: |
           HISTORY_VAR="TOOL_REMINDER_HISTORY"
           NEW_REPO="${{ steps.pick.outputs.project_repo }}"
