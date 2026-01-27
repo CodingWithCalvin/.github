@@ -1,0 +1,230 @@
+name: Tool Reminder Tuesday
+
+on:
+  schedule:
+    # Every Tuesday at 12PM EDT (16:00 UTC) / 11AM EST
+    - cron: '0 16 * * 2'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not post)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  select-project:
+    runs-on: ubuntu-latest
+    outputs:
+      has_project: ${{ steps.pick.outputs.has_project }}
+      project_name: ${{ steps.pick.outputs.project_name }}
+      project_description: ${{ steps.pick.outputs.project_description }}
+      project_repo: ${{ steps.pick.outputs.project_repo }}
+      project_url: ${{ steps.pick.outputs.project_url }}
+      project_emoji: ${{ steps.pick.outputs.project_emoji }}
+      project_hashtags: ${{ steps.pick.outputs.project_hashtags }}
+      post_text: ${{ steps.format.outputs.post_text }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read history variable
+        id: history
+        env:
+          GH_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
+        run: |
+          HISTORY_VAR="TOOL_REMINDER_HISTORY"
+          echo "Reading history from variable: $HISTORY_VAR"
+
+          # Get the variable value (returns empty if not found)
+          HISTORY_JSON=$(gh api "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" --jq '.value' 2>/dev/null || echo '[]')
+
+          # Validate it's a JSON array, default to empty array if not
+          if ! echo "$HISTORY_JSON" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
+            HISTORY_JSON='[]'
+          fi
+
+          echo "History contains $(echo "$HISTORY_JSON" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0) entries"
+          echo "exclude_repos=$HISTORY_JSON" >> $GITHUB_OUTPUT
+
+      - name: Select random project
+        id: pick
+        run: |
+          EXCLUDE_REPOS='${{ steps.history.outputs.exclude_repos }}'
+
+          PROJECT_JSON=$(python3 << 'PYEOF'
+          import json
+          import random
+          import os
+
+          # Load projects
+          with open('data/projects.json', 'r') as f:
+              data = json.load(f)
+
+          # Load exclusion list
+          exclude_repos = json.loads(os.environ.get('EXCLUDE_REPOS', '[]'))
+
+          # Flatten all projects, excluding Documentation Sites category
+          all_projects = []
+          for category in data['categories']:
+              if category['name'] == 'Documentation Sites':
+                  continue
+              for project in category['projects']:
+                  all_projects.append(project)
+
+          # Filter out recently selected projects
+          eligible = [p for p in all_projects if p['repo'] not in exclude_repos]
+
+          # If all projects have been selected, reset and use all
+          if not eligible:
+              eligible = all_projects
+              print(json.dumps({'reset': True}), file=open('/tmp/reset_flag', 'w'))
+
+          # Pick a random project
+          if eligible:
+              selected = random.choice(eligible)
+              print(json.dumps(selected))
+          else:
+              print(json.dumps({}))
+          PYEOF
+          )
+
+          # Check if we got a project
+          PROJECT_NAME=$(echo "$PROJECT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('name', ''))")
+
+          if [ -z "$PROJECT_NAME" ]; then
+            echo "No eligible projects found"
+            echo "has_project=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "has_project=true" >> $GITHUB_OUTPUT
+
+          PROJECT_REPO=$(echo "$PROJECT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('repo', ''))")
+          PROJECT_DESC=$(echo "$PROJECT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('description', ''))")
+          PROJECT_EMOJI=$(echo "$PROJECT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin).get('emoji', ''))")
+          PROJECT_TOPICS=$(echo "$PROJECT_JSON" | python3 -c "import sys, json; print(' '.join(['#' + t for t in json.load(sys.stdin).get('topics', [])]))")
+          PROJECT_URL="https://github.com/CodingWithCalvin/$PROJECT_REPO"
+
+          echo "Selected: $PROJECT_NAME ($PROJECT_REPO)"
+          echo "Description: $PROJECT_DESC"
+          echo "URL: $PROJECT_URL"
+          echo "Hashtags: $PROJECT_TOPICS"
+
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          echo "project_repo=$PROJECT_REPO" >> $GITHUB_OUTPUT
+          echo "project_description=$PROJECT_DESC" >> $GITHUB_OUTPUT
+          echo "project_emoji=$PROJECT_EMOJI" >> $GITHUB_OUTPUT
+          echo "project_hashtags=$PROJECT_TOPICS" >> $GITHUB_OUTPUT
+          echo "project_url=$PROJECT_URL" >> $GITHUB_OUTPUT
+        env:
+          EXCLUDE_REPOS: ${{ steps.history.outputs.exclude_repos }}
+
+      - name: Format post text
+        id: format
+        if: steps.pick.outputs.has_project == 'true'
+        run: |
+          NAME="${{ steps.pick.outputs.project_name }}"
+          DESC="${{ steps.pick.outputs.project_description }}"
+          EMOJI="${{ steps.pick.outputs.project_emoji }}"
+          HASHTAGS="${{ steps.pick.outputs.project_hashtags }}"
+          URL="${{ steps.pick.outputs.project_url }}"
+
+          # Format the post
+          POST_TEXT=$(cat << EOF
+          $EMOJI Tool Reminder Tuesday!
+
+          Check out $NAME - $DESC
+
+          $HASHTAGS
+          EOF
+          )
+
+          # Trim leading whitespace from heredoc
+          POST_TEXT=$(echo "$POST_TEXT" | sed 's/^[[:space:]]*//')
+
+          echo "Post text:"
+          echo "$POST_TEXT"
+
+          # Use delimiter for multiline output
+          echo "post_text<<POSTEOF" >> $GITHUB_OUTPUT
+          echo "$POST_TEXT" >> $GITHUB_OUTPUT
+          echo "POSTEOF" >> $GITHUB_OUTPUT
+
+      - name: Update history variable
+        if: steps.pick.outputs.has_project == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
+        run: |
+          HISTORY_VAR="TOOL_REMINDER_HISTORY"
+          NEW_REPO="${{ steps.pick.outputs.project_repo }}"
+          CURRENT_HISTORY='${{ steps.history.outputs.exclude_repos }}'
+
+          # Check if we need to reset (all projects were selected)
+          if [ -f /tmp/reset_flag ]; then
+            echo "Resetting history - all projects have been featured"
+            CURRENT_HISTORY='[]'
+          fi
+
+          # Default to empty array if no history
+          if [ -z "$CURRENT_HISTORY" ]; then
+            CURRENT_HISTORY='[]'
+          fi
+
+          # Add new repo to history
+          UPDATED_HISTORY=$(python3 -c "
+          import json
+          history = json.loads('$CURRENT_HISTORY')
+          new_repo = '$NEW_REPO'
+
+          # Add new repo to the list
+          if new_repo and new_repo not in history:
+              history.append(new_repo)
+
+          print(json.dumps(history))
+          ")
+
+          echo "Updating history variable with $(echo "$UPDATED_HISTORY" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0) entries"
+
+          # Check if variable exists
+          if gh api "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" --silent 2>/dev/null; then
+            # Update existing variable
+            gh api --method PATCH "repos/${{ github.repository }}/actions/variables/$HISTORY_VAR" \
+              -f value="$UPDATED_HISTORY"
+          else
+            # Create new variable
+            gh api --method POST "repos/${{ github.repository }}/actions/variables" \
+              -f name="$HISTORY_VAR" \
+              -f value="$UPDATED_HISTORY"
+          fi
+
+          echo "History updated successfully"
+
+  post-to-bluesky:
+    needs: select-project
+    if: needs.select-project.outputs.has_project == 'true' && inputs.dry_run != true
+    uses: ./.github/workflows/bluesky-post.yml
+    with:
+      post_text: ${{ needs.select-project.outputs.post_text }}
+      embed_url: ${{ needs.select-project.outputs.project_url }}
+    secrets:
+      BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+
+  dry-run-summary:
+    needs: select-project
+    if: needs.select-project.outputs.has_project == 'true' && inputs.dry_run == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show what would be posted
+        run: |
+          echo "## Dry Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Selected Project:** ${{ needs.select-project.outputs.project_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ needs.select-project.outputs.project_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Post Preview" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ needs.select-project.outputs.post_text }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
