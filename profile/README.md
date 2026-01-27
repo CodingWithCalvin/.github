@@ -41,9 +41,24 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/dtvem.io?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
+<td>🏃 <a href="https://github.com/CodingWithCalvin/rnr.cli">rnr</a></td>
+<td>Cross-platform task runner with zero-setup execution</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/rnr.cli?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>📖 <a href="https://github.com/CodingWithCalvin/rnrcli.io">rnrcli.io</a></td>
+<td>Documentation website for rnr</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/rnrcli.io?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
 <td>🖥️ <a href="https://github.com/CodingWithCalvin/VSToolbox">VSToolbox</a></td>
 <td>System tray app for managing multiple VS installations</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSToolbox?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>🔍 <a href="https://github.com/CodingWithCalvin/VSCWhere">VSCWhere</a></td>
+<td>Locate VS Code installations on Windows (vswhere for VS Code)</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSCWhere?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
 <td colspan="3"><strong>📦 SDKs & Libraries</strong></td>
@@ -100,6 +115,24 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td>📂 <a href="https://github.com/CodingWithCalvin/VS-OpenBinFolder">VS-OpenBinFolder</a></td>
 <td>Quick access to output directory</td>
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-OpenBinFolder?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>🔬 <a href="https://github.com/CodingWithCalvin/VS-Debugalizers">VS-Debugalizers</a></td>
+<td>Debug visualizers with syntax highlighting for common data types</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-Debugalizers?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>🤖 <a href="https://github.com/CodingWithCalvin/VS-MCPServer">VS-MCPServer</a></td>
+<td>Model Context Protocol server for AI assistant integration</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-MCPServer?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td colspan="3"><strong>🔵 VS Code Extensions</strong></td>
+</tr>
+<tr>
+<td>🤖 <a href="https://github.com/CodingWithCalvin/VSC-MCPServer">VSC-MCPServer</a></td>
+<td>Model Context Protocol server for AI assistant integration</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSC-MCPServer?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
 <td colspan="3"><strong>⚙️ GitHub Actions</strong></td>
