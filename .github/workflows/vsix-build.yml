@@ -36,6 +36,17 @@ jobs:
         echo "version=$version" >> $env:GITHUB_OUTPUT
       shell: pwsh
 
+    - name: Update workflow run name
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.actions.updateWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: context.runId,
+            name: `Building '${{ inputs.extension-name }}' - v${{ steps.version.outputs.version }}`
+          })
+
     - name: 2. Inject Honeycomb API Key
       if: hashFiles(env.HONEYCOMB_CONFIG) != ''
       run: |
