@@ -2,6 +2,12 @@ name: Update Contributors
 
 on:
   workflow_call:
+    inputs:
+      output-format:
+        description: 'Output format: html (enforces image size) or markdown'
+        required: false
+        type: string
+        default: 'markdown'
 
 jobs:
   contributors:
@@ -14,6 +20,7 @@ jobs:
       - name: Update contributors
         env:
           GH_TOKEN: ${{ secrets.CONTRIBUTORS_TOKEN }}
+          OUTPUT_FORMAT: ${{ inputs.output-format }}
         run: |
           # Fetch code contributors (exclude bots)
           code_contributors=$(gh api repos/${{ github.repository }}/contributors --paginate --jq '.[] | select(.type != "Bot") | select(.login | test("\\[bot\\]$") | not) | .login')
@@ -42,8 +49,8 @@ jobs:
           other_contributors=$(echo -e "$code_contributors\n$issue_authors" | sort -u | grep -v '^$' | grep -v '^CalvinAllen$' || true)
           all_contributors=$(echo -e "CalvinAllen\n$other_contributors" | grep -v '^$')
 
-          # Build markdown for each contributor
-          contributor_md=""
+          # Build output for each contributor
+          contributor_output=""
           for login in $all_contributors; do
             # Skip bots
             if [[ "$login" == *"[bot]" ]]; then
@@ -55,12 +62,18 @@ jobs:
             avatar=$(echo "$user_info" | jq -r '.avatar_url')
             url=$(echo "$user_info" | jq -r '.html_url')
 
-            contributor_md="$contributor_md[![$login](${avatar}&s=64)]($url) "
+            if [[ "$OUTPUT_FORMAT" == "html" ]]; then
+              # HTML format with enforced size
+              contributor_output="$contributor_output<a href=\"$url\"><img src=\"${avatar}&s=64\" width=\"64\" height=\"64\" alt=\"$login\"></a> "
+            else
+              # Markdown format (default)
+              contributor_output="$contributor_output[![$login](${avatar}&s=64)]($url) "
+            fi
           done
 
           # Build the contributors section
           contrib_section="<!-- readme: contributors -start -->
-          $contributor_md
+          $contributor_output
           <!-- readme: contributors -end -->"
 
           # Update README between the markers
