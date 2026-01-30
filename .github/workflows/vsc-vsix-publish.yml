@@ -1,0 +1,167 @@
+name: VSC VSIX Publish
+
+on:
+  workflow_call:
+    inputs:
+      extension-name:
+        description: 'The extension name (e.g., VSC-MCPServer)'
+        required: true
+        type: string
+      display-name:
+        description: 'Human readable display name (e.g., "VSC as MCP")'
+        required: true
+        type: string
+      marketplace-id:
+        description: 'VS Code Marketplace ID (e.g., CodingWithCalvin.VSC-MCPServer)'
+        required: true
+        type: string
+      description:
+        description: 'Short description for social media embeds'
+        required: true
+        type: string
+      hashtags:
+        description: 'Additional hashtags for social posts (optional)'
+        required: false
+        type: string
+        default: ''
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      run-tests:
+        description: 'Whether to run tests before publishing'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      VS_PAT:
+        description: 'VS Code Marketplace PAT'
+        required: true
+      BLUESKY_USERNAME:
+        description: 'BlueSky username'
+        required: true
+      BLUESKY_APP_PASSWORD:
+        description: 'BlueSky app password'
+        required: true
+      X_CONSUMER_KEY:
+        description: 'X API consumer key'
+        required: true
+      X_CONSUMER_KEY_SECRET:
+        description: 'X API consumer key secret'
+        required: true
+      X_ACCESS_TOKEN:
+        description: 'X API access token'
+        required: true
+      X_ACCESS_TOKEN_SECRET:
+        description: 'X API access token secret'
+        required: true
+
+env:
+  VSIX_FILE: CodingWithCalvin.${{ inputs.extension-name }}.vsix
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        if: inputs.run-tests
+        run: npm run test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Set version
+        id: version
+        run: |
+          VERSION=$(date +'%Y.%m%d').${{ github.run_number }}
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package -o ${{ env.VSIX_FILE }}
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish -p ${{ secrets.VS_PAT }}
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: ${{ env.VSIX_FILE }}
+
+  changelog:
+    needs: publish
+    uses: CodingWithCalvin/.github/.github/workflows/generate-changelog.yml@main
+    secrets: inherit
+
+  release:
+    needs: [publish, changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.publish.outputs.version }}
+          name: v${{ needs.publish.outputs.version }}
+          body: ${{ needs.changelog.outputs.changelog }}
+          files: CodingWithCalvin.${{ inputs.extension-name }}.vsix
+
+  bluesky:
+    needs: [publish, release]
+    uses: CodingWithCalvin/.github/.github/workflows/bluesky-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.display-name }} v${{ needs.publish.outputs.version }} has been released!
+
+        [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.publish.outputs.version }})
+        [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }})
+
+        #vscode ${{ inputs.hashtags }}
+      embed_title: "${{ inputs.display-name }} v${{ needs.publish.outputs.version }}"
+      embed_description: ${{ inputs.description }}
+    secrets:
+      BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+      BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+
+  x:
+    needs: [publish, release]
+    uses: CodingWithCalvin/.github/.github/workflows/x-post.yml@main
+    with:
+      post_text: |
+        🚀 ${{ inputs.display-name }} v${{ needs.publish.outputs.version }} has been released!
+
+        GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.publish.outputs.version }}
+        VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=${{ inputs.marketplace-id }}
+
+        #vscode ${{ inputs.hashtags }}
+    secrets:
+      X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+      X_CONSUMER_KEY_SECRET: ${{ secrets.X_CONSUMER_KEY_SECRET }}
+      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+      X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}

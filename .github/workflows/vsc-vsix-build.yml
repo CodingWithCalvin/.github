@@ -1,0 +1,63 @@
+name: VSC VSIX Build
+
+on:
+  workflow_call:
+    inputs:
+      extension-name:
+        description: 'The extension name (e.g., VSC-MCPServer)'
+        required: true
+        type: string
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      run-lint:
+        description: 'Whether to run linting'
+        required: false
+        type: boolean
+        default: true
+      run-tests:
+        description: 'Whether to run tests'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  VSIX_FILE: CodingWithCalvin.${{ inputs.extension-name }}.vsix
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        if: inputs.run-lint
+        run: npm run lint
+
+      - name: Run tests
+        if: inputs.run-tests
+        run: npm run test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package -o ${{ env.VSIX_FILE }}
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: ${{ env.VSIX_FILE }}
