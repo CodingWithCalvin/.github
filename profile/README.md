@@ -138,11 +138,6 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-JBMarketplacePublisher?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
-<td>🔢 <a href="https://github.com/CodingWithCalvin/GHA-VSVsixVersioner">GHA-VSVsixVersioner</a></td>
-<td>Version Visual Studio extensions (VSIX)</td>
-<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-VSVsixVersioner?style=for-the-badge&logo=github" alt="Stars"></td>
-</tr>
-<tr>
 <td colspan="3"><strong>📖 Documentation Sites</strong></td>
 </tr>
 <tr>
