@@ -160,13 +160,6 @@
           "description": "Publish plugins to the JetBrains Marketplace",
           "emoji": "🚀",
           "topics": ["GitHubActions", "CICD", "JetBrains", "Marketplace"]
-        },
-        {
-          "repo": "GHA-VSVsixVersioner",
-          "name": "GHA-VSVsixVersioner",
-          "description": "Version Visual Studio extensions (VSIX)",
-          "emoji": "🔢",
-          "topics": ["GitHubActions", "CICD", "VisualStudio", "VSIX", "Versioning"]
         }
       ]
     },
