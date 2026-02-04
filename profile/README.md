@@ -117,6 +117,11 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-MCPServer?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
+<td>🎯 <a href="https://github.com/CodingWithCalvin/VS-LaunchyBar">VS-LaunchyBar</a></td>
+<td>Activity Bar for Visual Studio - quick access toolbar with icons</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VS-LaunchyBar?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
 <td colspan="3"><strong>🔵 VS Code Extensions</strong></td>
 </tr>
 <tr>
