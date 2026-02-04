@@ -127,6 +127,13 @@
           "description": "Model Context Protocol server for AI assistant integration",
           "emoji": "🤖",
           "topics": ["VisualStudio", "Extension", "MCP", "AI", "Claude"]
+        },
+        {
+          "repo": "VS-LaunchyBar",
+          "name": "VS-LaunchyBar",
+          "description": "Activity Bar for Visual Studio - quick access toolbar with icons",
+          "emoji": "🎯",
+          "topics": ["VisualStudio", "Extension", "Productivity", "ActivityBar"]
         }
       ]
     },
@@ -140,6 +147,13 @@
           "description": "Model Context Protocol server for AI assistant integration",
           "emoji": "🤖",
           "topics": ["VSCode", "Extension", "MCP", "AI", "Claude"]
+        },
+        {
+          "repo": "VSC-VsixManifestDesigner",
+          "name": "VSC-VsixManifestDesigner",
+          "description": "Visual editor for VS Code extension manifests",
+          "emoji": "📋",
+          "topics": ["VSCode", "Extension", "PackageJson", "Designer"]
         }
       ]
     },
@@ -167,6 +181,13 @@
       "name": "Documentation Sites",
       "emoji": "📖",
       "projects": [
+        {
+          "repo": "vsix.guide",
+          "name": "vsix.guide",
+          "description": "Comprehensive VS extension development documentation",
+          "emoji": "📖",
+          "topics": ["Documentation", "VSIX", "VisualStudio"]
+        },
         {
           "repo": "dtvem.io",
           "name": "dtvem.io",
