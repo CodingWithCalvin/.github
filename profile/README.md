@@ -125,6 +125,11 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSC-MCPServer?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
+<td>📋 <a href="https://github.com/CodingWithCalvin/VSC-VsixManifestDesigner">VSC-VsixManifestDesigner</a></td>
+<td>Visual editor for VS Code extension manifests</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/VSC-VsixManifestDesigner?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
 <td colspan="3"><strong>⚙️ GitHub Actions</strong></td>
 </tr>
 <tr>
@@ -138,7 +143,17 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <td><img src="https://img.shields.io/github/stars/CodingWithCalvin/GHA-JBMarketplacePublisher?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
-<td colspan="3"><strong>📖 Documentation Sites</strong></td>
+<td colspan="3"><strong>🌐 Websites & Documentation</strong></td>
+</tr>
+<tr>
+<td>🌐 <a href="https://github.com/CodingWithCalvin/codingwithcalvin.net">codingwithcalvin.net</a></td>
+<td>Blog and website built with Astro</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/codingwithcalvin.net?style=for-the-badge&logo=github" alt="Stars"></td>
+</tr>
+<tr>
+<td>📖 <a href="https://github.com/CodingWithCalvin/vsix.guide">vsix.guide</a></td>
+<td>Comprehensive VS extension development documentation</td>
+<td><img src="https://img.shields.io/github/stars/CodingWithCalvin/vsix.guide?style=for-the-badge&logo=github" alt="Stars"></td>
 </tr>
 <tr>
 <td>📖 <a href="https://github.com/CodingWithCalvin/dtvem.io">dtvem.io</a></td>
@@ -154,24 +169,14 @@ This organization is home to the open source projects of [Calvin Allen](https://
 
 ---
 
-## 📚 Curated Resources
-
-Looking to build your own extensions? Check out these curated lists:
-
-| Platform | Resources |
-|----------|-----------|
-| 🟣 **Visual Studio** | [Extension Resources](https://github.com/stars/CalvinAllen/lists/vs-extension-resources) ・ [Extension Samples](https://github.com/stars/CalvinAllen/lists/vs-extensions-samples) |
-| 🍎 **VS for Mac** | [Extension Samples](https://github.com/stars/CalvinAllen/lists/vs4mac-extensions-samples) |
-| 🔵 **VS Code** | [Extension Samples](https://github.com/stars/CalvinAllen/lists/vscode-extensions-samples) |
-
----
-
 ## 📫 Connect
 
 <div align="center">
 
 [![Blog](https://img.shields.io/badge/Blog-codingwithcalvin.net-blue?style=for-the-badge&logo=astro&logoColor=white)](https://codingwithcalvin.net)
 [![Bluesky](https://img.shields.io/badge/Bluesky-@codingwithcalvin.net-0285FF?style=for-the-badge&logo=bluesky&logoColor=white)](https://bsky.app/profile/codingwithcalvin.net)
+[![X](https://img.shields.io/badge/X-@_CalvinAllen-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/_CalvinAllen)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-calvin--allen-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/calvin-allen)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕%20Support-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/codingwithcalvin)
 
 </div>
