@@ -127,10 +127,12 @@ function Setup-Repository {
     Write-Host ""
 
     Write-Host "4. Disabling Dependabot..." -ForegroundColor Yellow
+    $ErrorActionPreference = "Continue"
     gh api "repos/$FullRepo/vulnerability-alerts" -X DELETE 2>$null
     Write-Host "   - Vulnerability alerts: disabled" -ForegroundColor Green
     gh api "repos/$FullRepo/automated-security-fixes" -X DELETE 2>$null
     Write-Host "   - Automated security fixes: disabled" -ForegroundColor Green
+    $ErrorActionPreference = "Stop"
     Write-Host ""
 
     Write-Host "Done! Repository $FullRepo is configured." -ForegroundColor Cyan
