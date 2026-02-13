@@ -42,6 +42,8 @@ function Setup-Repository {
         -F allow_rebase_merge=false `
         -F delete_branch_on_merge=true `
         -F allow_update_branch=true `
+        -F has_pull_requests=true `
+        -f pull_request_creation_policy=collaborators_only `
         -F allow_auto_merge=false `
         -F web_commit_signoff_required=false `
         --silent
@@ -55,6 +57,7 @@ function Setup-Repository {
     Write-Host "   - Rebase merge: disabled" -ForegroundColor Green
     Write-Host "   - Squash merge: enabled" -ForegroundColor Green
     Write-Host "   - Delete branch on merge: enabled" -ForegroundColor Green
+    Write-Host "   - Pull requests: enabled (collaborators only)" -ForegroundColor Green
     Write-Host "   - Suggest updating PR branches: enabled" -ForegroundColor Green
     Write-Host ""
 
