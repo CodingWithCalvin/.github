@@ -45,8 +45,19 @@ jobs:
           done
           issue_authors=$(echo "$issue_authors" | sort -u)
 
+          # Fetch credited users from /credit commands in merged PR comments
+          credit_users=""
+          merged_prs=$(gh pr list --state merged --limit 100 --json number --jq '.[].number')
+          for pr_num in $merged_prs; do
+            credit_login=$(gh pr view "$pr_num" --json comments --jq '.comments[].body' 2>/dev/null | grep "^/credit @" | sed 's|^/credit @||' | tr -d '[:space:]' | head -1 || echo "")
+            if [[ -n "$credit_login" ]]; then
+              credit_users="$credit_users$credit_login"$'\n'
+            fi
+          done
+          credit_users=$(echo "$credit_users" | sort -u)
+
           # Combine and deduplicate, ensuring CalvinAllen is always first
-          other_contributors=$(echo -e "$code_contributors\n$issue_authors" | sort -u | grep -v '^$' | grep -v '^CalvinAllen$' || true)
+          other_contributors=$(echo -e "$code_contributors\n$issue_authors\n$credit_users" | sort -u | grep -v '^$' | grep -v '^CalvinAllen$' || true)
           all_contributors=$(echo -e "CalvinAllen\n$other_contributors" | grep -v '^$')
 
           # Build output for each contributor
