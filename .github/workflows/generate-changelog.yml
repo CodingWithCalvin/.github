@@ -121,6 +121,13 @@ jobs:
             HIGHLIGHTS+=("$RELEASE_NOTE")
           fi
 
+          # Check for /credit command (overrides PR author for attribution)
+          CREDIT_USER=$(echo "$PR_COMMENTS" | grep "^/credit @" | sed 's|^/credit @||' | tr -d '[:space:]' | head -1 || echo "")
+          if [ -n "$CREDIT_USER" ]; then
+            echo "  Found /credit: @$CREDIT_USER (overriding PR author)"
+            PR_AUTHOR="$CREDIT_USER"
+          fi
+
           # Build entry - use issue number(s) if available
           if [ -n "$ISSUE_NUMS" ]; then
             # Format multiple issues as "(#1, #2)"
