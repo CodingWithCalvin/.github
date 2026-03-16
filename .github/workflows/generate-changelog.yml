@@ -179,10 +179,13 @@ jobs:
         done
 
         # Helper function to sort entries by issue number and format output
+        # Uses null byte delimiter so multiline entries (with subitems) stay intact
         sort_entries() {
           local -n arr=$1
           if [ ${#arr[@]} -gt 0 ]; then
-            printf '%s\n' "${arr[@]}" | sort -t'|' -k1 -n | cut -d'|' -f2-
+            printf '%s\0' "${arr[@]}" | sort -z -t'|' -k1 -n | while IFS= read -r -d '' entry; do
+              echo "${entry#*|}"
+            done
           fi
         }
 
