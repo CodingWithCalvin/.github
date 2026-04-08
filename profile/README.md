@@ -179,8 +179,6 @@ This organization is home to the open source projects of [Calvin Allen](https://
 <div align="center">
 
 [![Blog](https://img.shields.io/badge/Blog-codingwithcalvin.net-blue?style=for-the-badge&logo=astro&logoColor=white)](https://codingwithcalvin.net)
-[![Bluesky](https://img.shields.io/badge/Bluesky-@codingwithcalvin.net-0285FF?style=for-the-badge&logo=bluesky&logoColor=white)](https://bsky.app/profile/codingwithcalvin.net)
-[![X](https://img.shields.io/badge/X-@_CalvinAllen-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/_CalvinAllen)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-calvin--allen-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/calvin-allen)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕%20Support-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/codingwithcalvin)
 
