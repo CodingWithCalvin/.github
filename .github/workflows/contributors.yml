@@ -74,8 +74,8 @@ jobs:
             url=$(echo "$user_info" | jq -r '.html_url')
 
             if [[ "$OUTPUT_FORMAT" == "html" ]]; then
-              # HTML format with enforced size
-              contributor_output="$contributor_output<a href=\"$url\"><img src=\"${avatar}&s=64\" width=\"64\" height=\"64\" alt=\"$login\"></a> "
+              # HTML format with enforced size (table cells prevent GitHub's display:block from stacking images)
+              contributor_output="$contributor_output<td><a href=\"$url\"><img src=\"${avatar}&s=64\" width=\"64\" height=\"64\" alt=\"$login\"></a></td>"
             else
               # Markdown format (default)
               contributor_output="$contributor_output[![$login](${avatar}&s=64)]($url) "
@@ -83,9 +83,15 @@ jobs:
           done
 
           # Build the contributors section
-          contrib_section="<!-- readme: contributors -start -->
-          $contributor_output
-          <!-- readme: contributors -end -->"
+          if [[ "$OUTPUT_FORMAT" == "html" ]]; then
+            contrib_section="<!-- readme: contributors -start -->
+<table><tr>$contributor_output</tr></table>
+<!-- readme: contributors -end -->"
+          else
+            contrib_section="<!-- readme: contributors -start -->
+$contributor_output
+<!-- readme: contributors -end -->"
+          fi
 
           # Update README between the markers
           awk -v contrib="$contrib_section" '
