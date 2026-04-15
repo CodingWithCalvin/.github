@@ -85,12 +85,12 @@ jobs:
           # Build the contributors section
           if [[ "$OUTPUT_FORMAT" == "html" ]]; then
             contrib_section="<!-- readme: contributors -start -->
-<table><tr>$contributor_output</tr></table>
-<!-- readme: contributors -end -->"
+          <table><tr>$contributor_output</tr></table>
+          <!-- readme: contributors -end -->"
           else
             contrib_section="<!-- readme: contributors -start -->
-$contributor_output
-<!-- readme: contributors -end -->"
+          $contributor_output
+          <!-- readme: contributors -end -->"
           fi
 
           # Update README between the markers
